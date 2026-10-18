@@ -1,0 +1,58 @@
+/* Gate new/reconciled content before the observer's next batch can run. */
+html[data-emoteonly-enabled="true"] :is(.chat-scrollable-area__message-container, .seventv-chat-list) :is(.chat-line__message, .seventv-message, .user-notice-line, .chat-line__status):not([data-eo-row="show"]):not([data-eo-path]),
+html[data-emoteonly-enabled="true"] [data-eo-row="hide"] {
+  display: none !important;
+}
+
+html[data-emoteonly-enabled="true"] [data-eo-row="show"],
+html[data-emoteonly-enabled="true"] [data-eo-row="show"] * {
+  visibility: hidden !important;
+  color: transparent !important;
+  text-shadow: none !important;
+}
+
+html[data-emoteonly-enabled="true"] [data-eo-row="show"] :not([data-eo-path]):not([data-eo-graphic]):not([data-eo-graphic] *) {
+  display: none !important;
+}
+
+html[data-emoteonly-enabled="true"] [data-eo-path] {
+  font-size: 0 !important;
+  line-height: 0 !important;
+  letter-spacing: 0 !important;
+  word-spacing: var(--eo-space, 0px) !important;
+}
+
+/* Restore provider sizing/line boxes at whole composition boundaries. */
+html[data-emoteonly-enabled="true"] [data-eo-unit] {
+  font-size: var(--eo-font) !important;
+  line-height: var(--eo-line) !important;
+  letter-spacing: normal !important;
+  word-spacing: normal !important;
+}
+
+html[data-emoteonly-enabled="true"] [data-eo-graphic="ready"],
+html[data-emoteonly-enabled="true"] [data-eo-graphic="ready"] * {
+  visibility: visible !important;
+}
+
+/* Never expose provider fallback codes, tooltip text, or generated labels. */
+html[data-emoteonly-enabled="true"] [data-eo-row] *::before,
+html[data-emoteonly-enabled="true"] [data-eo-row] *::after,
+html[data-emoteonly-enabled="true"] [data-eo-row]::before,
+html[data-emoteonly-enabled="true"] [data-eo-row]::after {
+  content: none !important;
+}
+html[data-emoteonly-enabled="true"] [data-eo-graphic] text {
+  display: none !important;
+}
+
+html[data-emoteonly-enabled="true"] [data-eo-path]:not([data-eo-unit]):not([data-eo-graphic]) {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+html[data-emoteonly-enabled="true"] [data-eo-unit] [data-eo-path] {
+  font-size: var(--eo-font) !important;
+  line-height: var(--eo-line) !important;
+}

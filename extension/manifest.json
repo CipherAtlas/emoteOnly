@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "EmoteOnly",
+  "version": "1.0.0",
+  "description": "Keep the emotes. Quiet the words. One click for emotes-only Twitch chat.",
+  "permissions": ["storage"],
+  "host_permissions": ["https://www.twitch.tv/*", "https://twitch.tv/*"],
+  "background": { "scripts": ["background.js"] },
+  "action": {
+    "default_title": "EmoteOnly is ON — click to show normal chat",
+    "default_icon": { "16": "icons/face.svg", "32": "icons/face.svg", "64": "icons/face.svg" }
+  },
+  "icons": { "48": "icons/face.svg", "96": "icons/face.svg" },
+  "content_scripts": [{
+    "matches": ["https://www.twitch.tv/*", "https://twitch.tv/*"],
+    "js": ["adapters.js", "content.js"],
+    "css": ["filter.css"],
+    "run_at": "document_start"
+  }],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "emoteonly@sabar.local",
+      "strict_min_version": "142.0",
+      "data_collection_permissions": { "required": ["none"] }
+    }
+  }
+}
