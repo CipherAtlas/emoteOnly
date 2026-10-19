@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
 import { JSDOM } from 'jsdom';
 
-const source = await Promise.all(['adapters.js', 'content.js'].map(name => readFile(new URL(`../extension/${name}`, import.meta.url), 'utf8')));
+const source = await Promise.all(['settings.js', 'adapters.js', 'content.js'].map(name => readFile(new URL(`../extension/${name}`, import.meta.url), 'utf8')));
 const css = await readFile(new URL('../extension/filter.css', import.meta.url), 'utf8');
 const tick = () => new Promise(resolve => setTimeout(resolve, 30));
 async function waitFor(predicate) {
@@ -23,20 +23,21 @@ async function setup(html, initial = true) {
   });
   window.HTMLCanvasElement.prototype.getContext = () => ({ font: '', measureText: () => ({ width: 3.5 }) });
   const listeners = new Set();
-  let value = initial;
+  let value = typeof initial === "boolean" ? { enabled: initial } : { ...initial };
   window.browser = { storage: {
-    local: { get: async () => ({ enabled: value }) },
+    local: { get: async () => ({ ...value }) },
     onChanged: { addListener: listener => listeners.add(listener) }
   } };
-  window.eval(source[0]);
-  window.eval(source[1]);
-  const toggle = async enabled => {
-    const oldValue = value; value = enabled;
-    for (const listener of listeners) listener({ enabled: { oldValue, newValue: enabled } }, 'local');
+  source.forEach(script => window.eval(script));
+  const configure = async changes => {
+    const events = Object.fromEntries(Object.entries(changes).map(([key, newValue]) => [key, { oldValue: value[key], newValue }]));
+    Object.assign(value, changes);
+    for (const listener of listeners) listener(events, 'local');
     await tick();
   };
+  const toggle = enabled => configure({ enabled });
   await tick();
-  return { dom, window, document: window.document, toggle, close: () => window.close() };
+  return { dom, window, document: window.document, toggle, configure, close: () => window.close() };
 }
 
 test('text-only, emoji, mentions and decorative images vanish; known emotes keep order', async () => {
@@ -140,9 +141,9 @@ test('rapid updates process only changed rows and do not feed back or retain rem
     await waitFor(() => app.document.querySelectorAll('[data-eo-row]').length === 501);
     assert.equal(app.document.querySelectorAll('[data-eo-row]').length, 501);
     assert.equal(app.document.querySelectorAll('[data-eo-row="show"]').length, 251);
-    assert.equal(calls, 500);
+    assert.equal(calls, 750);
     await tick();
-    assert.equal(calls, 500, 'no observer feedback or old-row rescans');
+    assert.equal(calls, 750, 'no observer feedback or old-row rescans');
     const removed = app.document.querySelector('#old'); removed.remove();
     await tick();
     assert.equal(removed.hasAttribute('data-eo-row'), false);
@@ -171,7 +172,7 @@ test('initial storage snapshot cannot override a newer toggle event', async () =
   try {
     let resolveGet; let listener;
     dom.window.browser = { storage: { local: { get: () => new Promise(resolve => { resolveGet = resolve; }) }, onChanged: { addListener: value => { listener = value; } } } };
-    dom.window.eval(source[0]); dom.window.eval(source[1]);
+    source.forEach(script => dom.window.eval(script));
     listener({ enabled: { newValue: true } }, 'local');
     listener({ enabled: { newValue: false } }, 'local');
     resolveGet({ enabled: true });
@@ -259,7 +260,7 @@ test('current 7TV 1.10 renderer recognizes emote/emoji images and groups zero-wi
   } finally { app.close(); }
 });
 
-test('only emote rows retain author names and subscriber/founder badges; replies and mentions stay hidden', async () => {
+test('only emote rows retain author names and badge icons; replies and mentions stay hidden', async () => {
   const badges = '<img class="chat-badge" src="gift.webp" alt="Subscriber Gifter badge"><img class="chat-badge" src="sub.webp" alt="3-Month Subscriber badge"><img class="chat-badge" src="mod.webp" alt="Moderator"><span class="ffz-badge" data-badge="founder" style="background-image:url(founder.webp)"></span><span class="ffz-badge" data-badge="vip"></span>';
   const app = await setup(row(img() + '<span class="reply-line"><span class="chat-author__display-name">ReplyUser</span></span><span data-a-target="chat-message-mention"><span class="chat-author__display-name">MentionUser</span></span>', 'mixed') + row('words', 'plain'), false);
   try {
@@ -268,16 +269,81 @@ test('only emote rows retain author names and subscriber/founder badges; replies
     await app.toggle(true);
     assert.equal(app.document.querySelectorAll('[data-eo-name]').length, 1);
     assert.equal(app.document.querySelector('[data-eo-name]').textContent, 'User');
-    assert.equal(app.document.querySelectorAll('[data-eo-badge]').length, 2);
+    assert.equal(app.document.querySelectorAll('[data-eo-badge]').length, 5);
     assert.equal(app.document.querySelector('#plain [data-eo-name]'), null);
     const sub = app.document.querySelector('#mixed img[alt="3-Month Subscriber badge"]');
     sub.alt = 'VIP';
     await tick();
-    assert.equal(sub.hasAttribute('data-eo-badge'), false);
+    assert.equal(sub.hasAttribute('data-eo-badge'), true);
     sub.alt = '3-Month Subscriber badge';
     await tick();
     assert.equal(sub.hasAttribute('data-eo-badge'), true);
     await app.toggle(false);
     assert.equal(app.document.querySelector('main').innerHTML, original);
   } finally { app.close(); }
+});
+
+test('author badge icons survive provider-specific and localized labels, including moderator and VIP', async () => {
+  const badges = '<img class="chat-badge" src="subscriber.webp" alt="Bronze Frog"><img class="chat-badge" src="moderator.webp" alt="Moderator"><img class="chat-badge" src="vip.webp" alt="VIP">';
+  const native = row(img(), 'roles').replace('<img class="chat-line__message--emote" alt="badge">', badges);
+  const legacy = '<div class="seventv-message"><div class="seventv-user-message"><span class="seventv-chat-user"><span class="seventv-chat-user-badge-list"><div class="seventv-chat-badge"><img srcset="sub.webp 1x" alt="Abonnent"></div><div class="seventv-chat-badge"><img src="mod.webp" alt="Moderator"></div></span><span class="seventv-chat-user-username">User</span></span><span class="seventv-chat-message-body"><img class="seventv-chat-emote" src="emote.webp"></span></div></div>';
+  const app = await setup(native + legacy, false);
+  try {
+    const before = app.document.querySelector('main').innerHTML;
+    await app.toggle(true);
+    assert.equal(app.document.querySelectorAll('#roles [data-eo-badge]').length, 3);
+    assert.equal(app.document.querySelectorAll('.seventv-message [data-eo-badge]').length, 2);
+    assert.equal(app.document.querySelectorAll('[data-eo-graphic]').length, 2, 'badges never qualify as emotes');
+    await app.toggle(false);
+    assert.equal(app.document.querySelector('main').innerHTML, before);
+  } finally { app.close(); }
+});
+
+test('metadata switches update existing rows independently and never preserve text-only messages', async () => {
+  const app = await setup(row(img(), 'emotes') + row('just words', 'words'));
+  try {
+    const emotes = app.document.getElementById('emotes');
+    assert(emotes.querySelector('[data-eo-name]'));
+    assert(emotes.querySelector('[data-eo-time]'));
+    await app.configure({ usernames: false });
+    assert.equal(emotes.querySelector('[data-eo-name]'), null);
+    assert(emotes.querySelector('[data-eo-time]'));
+    await app.configure({ timestamps: false, badges: false });
+    assert.equal(emotes.querySelector('[data-eo-time]'), null);
+    assert.equal(app.document.getElementById('words').dataset.eoRow, 'hide');
+    assert.equal(emotes.querySelectorAll('[data-eo-graphic]').length, 1);
+    await app.configure({ usernames: true, timestamps: true });
+    assert(emotes.querySelector('[data-eo-name]'));
+    assert(emotes.querySelector('[data-eo-time]'));
+    await app.toggle(false);
+    assert.equal(app.document.querySelector('[data-eo-time]'), null);
+  } finally { app.close(); }
+});
+
+test('saved preferences apply at startup; 7TV timestamp and badges have separate switches', async () => {
+  const app = await setup('<div class="seventv-message" id="seven"><span class="seventv-chat-message-timestamp">12:34</span><span class="seventv-chat-user"><span class="seventv-chat-badge"><img src="badge.webp"></span><span class="seventv-chat-user-username">Name</span></span><span class="seventv-chat-message-body"><img class="seventv-chat-emote" src="emote.webp"></span></div>', { enabled: true, usernames: false, badges: false, timestamps: false });
+  try {
+    assert.equal(app.document.querySelectorAll('[data-eo-name],[data-eo-badge],[data-eo-time]').length, 0);
+    await app.configure({ badges: true });
+    assert.equal(app.document.querySelectorAll('[data-eo-badge]').length, 1);
+    assert.equal(app.document.querySelectorAll('[data-eo-name],[data-eo-time]').length, 0);
+    await app.configure({ timestamps: true });
+    assert.equal(app.document.querySelector('[data-eo-time]').textContent, '12:34');
+  } finally { app.close(); }
+});
+
+test('a preference change during startup merges with the saved master setting', async () => {
+  const dom = new JSDOM('<html><body></body></html>', { runScripts: 'outside-only' });
+  try {
+    let resolveGet, listener;
+    dom.window.browser = { storage: { local: { get: () => new Promise(resolve => { resolveGet = resolve; }) }, onChanged: { addListener: value => { listener = value; } } } };
+    source.forEach(script => dom.window.eval(script));
+    listener({ badges: { newValue: true } }, 'local');
+    resolveGet({ enabled: false, badges: false, usernames: false });
+    await tick();
+    assert.equal(dom.window.document.documentElement.hasAttribute('data-emoteonly-enabled'), false);
+    listener({ enabled: { newValue: true } }, 'local');
+    await tick();
+    assert.equal(dom.window.document.documentElement.dataset.emoteonlyEnabled, 'true');
+  } finally { dom.window.close(); }
 });

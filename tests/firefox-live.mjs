@@ -1,3 +1,4 @@
+import { popupController } from './popup-control.mjs';
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { createServer } from 'node:net';
@@ -22,11 +23,11 @@ const duration = Number(process.env.LIVE_SAMPLE_SECONDS || 45) * 1000;
 const manifest = JSON.parse(await readFile(join(root, 'extension/manifest.json'), 'utf8'));
 const addonId = manifest.browser_specific_settings.gecko.id;
 const providerFiles = new Map();
-const providerSlugs = { bttv: 'betterttv', ffz: 'frankerfacez', '7tv': '7tv-new' };
+const providerSlugs = { bttv: 'betterttv', ffz: 'frankerfacez', '7tv': '7tv-new', '7tv-legacy': '7tv-extension' };
 const report = { startedAt: new Date().toISOString(), channel, sampleSeconds: duration / 1000,
   scope: 'Actual public Twitch pages, real incoming messages, production extension, official provider add-ons, isolated headless Firefox profiles. No account login or outgoing chat messages.',
   extension: { version: manifest.version, files: {} }, providers: {}, checks: [], limitations: ['Finite live samples do not certify all channels, messages or future renderer updates.', 'Rare wide/zero-width compositions remain covered by controlled Firefox fixtures unless they occur in the live sample.'] };
-for (const name of ['adapters.js', 'background.js', 'content.js', 'filter.css']) {
+for (const name of ['settings.js', 'adapters.js', 'background.js', 'content.js', 'filter.css', 'popup.html', 'popup.css', 'popup.js']) {
   report.extension.files[name] = createHash('sha256').update(await readFile(join(root, 'extension', name))).digest('hex');
 }
 if (process.env.LIVE_RESUME === '1') {
@@ -48,16 +49,9 @@ async function request(method, path, body) {
 const command = (method, path, body) => request(method, `/session/${session}${path}`, body);
 const execute = (script, ...args) => command('POST', '/execute/sync', { script, args });
 const audit = () => execute(`return (${auditChat.toString()})()`);
-async function toolbarClick() {
-  await command('POST', '/moz/context', { context: 'chrome' });
-  try {
-    await execute(`const id=arguments[0].toLowerCase().replace(/[^a-z0-9_-]/g,'_')+'-browser-action';
-      const {CustomizableUI}=ChromeUtils.importESModule('moz-src:///browser/components/customizableui/CustomizableUI.sys.mjs');
-      CustomizableUI.addWidgetToArea(id,CustomizableUI.AREA_NAVBAR);
-      const button=document.getElementById(id)?.querySelector('toolbarbutton.unified-extensions-item-action-button');
-      if(!button)throw Error('No toolbar action');button.click();`, addonId);
-  } finally { await command('POST', '/moz/context', { context: 'content' }); }
-}
+const configurePopup = popupController({ command, execute, addonId });
+const toolbarClick = () => configurePopup();
+
 async function screenshot(name) {
   await writeFile(join(artifacts, `live-${name}.png`), Buffer.from(await command('GET', '/screenshot'), 'base64'));
 }
@@ -103,12 +97,12 @@ async function stopBrowser() {
 }
 function assertFiltered(sample) {
   assert.equal(sample.visibleTextNodes, 0, `visible transcript text: ${JSON.stringify(sample.leakClasses)}`);
-  assert.equal(sample.visibleNonEmoteGraphics, 0, 'visible graphics outside emotes/subscriber badges');
+  assert.equal(sample.visibleNonEmoteGraphics, 0, 'visible graphics outside emotes/author badges');
   assert.equal(sample.visiblePseudoLabels, 0, `visible generated text: ${JSON.stringify(sample.pseudoClasses)}`);
 }
 async function sampleMode(mode) {
-  const check = { mode, status: 'running', samples: 0, totalNewRows: 0, peakEmotes: 0, peakVisibleEmotes: 0,
-    peakVisibleUsernames: 0, peakVisibleSubscriberBadges: 0, nativeGraphics: 0, bttvGraphics: 0, ffzGraphics: 0, sevenTvGraphics: 0,
+  const check = { mode, channel, status: 'running', samples: 0, totalNewRows: 0, peakEmotes: 0, peakVisibleEmotes: 0,
+    peakVisibleUsernames: 0, peakVisibleBadges: 0, nativeGraphics: 0, bttvGraphics: 0, ffzGraphics: 0, sevenTvGraphics: 0,
     visibleTextNodes: 0, visibleNonEmoteGraphics: 0, visiblePseudoLabels: 0 };
   report.checks.push(check);
   try {
@@ -127,7 +121,7 @@ async function sampleMode(mode) {
       check.samples++;
       for (const field of ['visibleTextNodes', 'visibleNonEmoteGraphics', 'visiblePseudoLabels']) check[field] += sample[field];
       check.peakVisibleUsernames = Math.max(check.peakVisibleUsernames, sample.visibleUsernames);
-      check.peakVisibleSubscriberBadges = Math.max(check.peakVisibleSubscriberBadges, sample.visibleSubscriberBadges);
+      check.peakVisibleBadges = Math.max(check.peakVisibleBadges, sample.visibleBadges);
       check.peakEmotes = Math.max(check.peakEmotes, sample.readyGraphics);
       check.peakVisibleEmotes = Math.max(check.peakVisibleEmotes, sample.visibleReadyGraphics);
       assertFiltered(sample);
@@ -164,7 +158,7 @@ async function sampleMode(mode) {
     await pause(500);
     assertFiltered(await audit());
     check.toggleRestoration = 'passed';
-    const expected = { bttv: 'bttvGraphics', ffz: 'ffzGraphics', '7tv': 'sevenTvGraphics' }[mode];
+    const expected = { bttv: 'bttvGraphics', ffz: 'ffzGraphics', '7tv': 'sevenTvGraphics', '7tv-legacy': 'sevenTvGraphics' }[mode];
     if (expected && !check[expected]) {
       check.status = 'inconclusive';
       check.reason = 'Native chat worked but no graphics from this provider renderer appeared in the sample.';

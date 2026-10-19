@@ -1,6 +1,8 @@
 (() => {
   "use strict";
   const { lists, rows, messageFor, detect, identity } = globalThis.EmoteOnlyAdapters;
+  const { defaults, normalize } = globalThis.EmoteOnlySettings;
+  let settings = { ...defaults };
   const root = document.documentElement;
   const attributes = ["class", "src", "srcset", "style", "data-a-target", "data-test-selector", "alt", "data-badge"];
   const containers = new Map();
@@ -19,7 +21,7 @@
     if (!saved.has(name)) {
       saved.set(name, name === "style" ? {
         raw: element.getAttribute("style"), normalized: element.style.cssText,
-        properties: ["--eo-font", "--eo-line", "--eo-space", "--eo-color"].map(key =>
+        properties: ["--eo-font", "--eo-line", "--eo-color", "--eo-gap"].map(key =>
           [key, element.style.getPropertyValue(key), element.style.getPropertyPriority(key)])
       } : element.getAttribute(name));
     }
@@ -66,9 +68,9 @@
     const units = detect(row);
     const metrics = units.map(({ element }) => {
       const style = getComputedStyle(element);
-      return { font: style.fontSize, line: style.lineHeight, space: spaceWidth(style) };
+      return { font: style.fontSize, line: style.lineHeight, space: spaceWidth(style), margin: style.marginInlineEnd };
     });
-    const identities = units.length ? identity(row).map(item => {
+    const identities = units.length ? identity(row).filter(item => settings[{ name: "usernames", badge: "badges", time: "timestamps" }[item.kind]]).map(item => {
       const style = getComputedStyle(item.element);
       return { ...item, font: style.fontSize, line: style.lineHeight, color: style.color };
     }) : [];
@@ -86,6 +88,10 @@
       remember(state, element, "style", "");
       element.style.setProperty("--eo-font", metric.font);
       element.style.setProperty("--eo-line", metric.line);
+      // Add one gap per composition, never between a BTTV base and its overlay.
+      const next = units[index + 1]?.element;
+      const gap = next && !next.matches(".bttv-emote-overlay") ? metric.space : "0px";
+      element.style.setProperty("--eo-gap", `calc(${metric.margin || "0px"} + ${gap})`);
       for (const graphic of graphics) {
         remember(state, graphic, "data-eo-graphic", graphic.tagName === "IMG" && !graphic.naturalWidth ? "pending" : "ready");
         // Wrapper paths retain CSS grids, negative margins and transforms.
@@ -97,12 +103,10 @@
       remember(state, element, "style", "");
       element.style.setProperty("--eo-font", font);
       element.style.setProperty("--eo-line", line);
-      if (kind === "name") element.style.setProperty("--eo-color", color);
+      if (kind === "name" || kind === "time") element.style.setProperty("--eo-color", color);
       for (let parent = element; parent && parent !== row; parent = parent.parentElement) paths.add(parent);
     }
     if (units.length) {
-      remember(state, row, "style", "");
-      row.style.setProperty("--eo-space", metrics[0].space);
       for (const path of paths) remember(state, path, "data-eo-path", "");
     }
     remember(state, row, "data-eo-row", units.length ? "show" : "hide");
@@ -229,8 +233,15 @@
   }
 
   function apply(next) {
-    if (enabled === next) return;
-    enabled = next;
+    const previous = settings;
+    settings = normalize(next);
+    if (enabled === settings.enabled) {
+      if (enabled && Object.keys(defaults).some(key => previous[key] !== settings[key])) {
+        for (const container of containers.keys()) enqueue(container);
+      }
+      return;
+    }
+    enabled = settings.enabled;
     if (enabled) {
       root.setAttribute("data-emoteonly-enabled", "true");
       discover();
@@ -254,15 +265,24 @@
   }
 
   // Register before reading storage; a concurrent toggle must win over the initial read.
-  let revision = 0;
+  let initialized = false;
+  const initialChanges = {};
   browser.storage.onChanged.addListener((changes, area) => {
-    if (area === "local" && changes.enabled) {
-      revision++;
-      apply(changes.enabled.newValue !== false);
+    if (area !== "local") return;
+    const next = { ...settings };
+    let changed = false;
+    for (const key of Object.keys(defaults)) if (changes[key]) {
+      next[key] = changes[key].newValue;
+      changed = true;
+    }
+    if (changed) {
+      if (!initialized) {
+        for (const key of Object.keys(defaults)) if (changes[key]) initialChanges[key] = changes[key].newValue;
+      } else apply(next);
     }
   });
-  const initialRevision = revision;
-  browser.storage.local.get("enabled").then(({ enabled: value }) => {
-    if (revision === initialRevision) apply(value !== false);
-  }).catch(error => console.error("EmoteOnly could not read its setting:", error));
+  browser.storage.local.get(defaults).then(values => {
+    initialized = true;
+    apply({ ...values, ...initialChanges });
+  }).catch(error => console.error("EmoteOnly could not read its settings:", error));
 })();

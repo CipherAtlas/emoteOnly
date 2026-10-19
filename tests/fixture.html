@@ -15,6 +15,7 @@
   .bttv-emote-overlay { margin-left: -28px; }
   .ffz-background { display: inline-block; width: 28px; height: 28px; background-size: contain; vertical-align: middle; }
   #seven-current-row .chat-author__display-name { color: rgb(255, 105, 180); -webkit-text-fill-color:transparent; background:linear-gradient(red,blue);background-clip:text; }
+  .seventv-chat-user, .seventv-chat-user-badge-list, .seventv-chat-badge { display: inline-block; }
   .reply-line::before { content: "Reply to somebody"; }
 </style>
 <video id="player" controls width="200"></video>
@@ -32,7 +33,7 @@
     return `<span data-test-selector="emote-button"><img id="${id}" class="chat-line__message--emote" src="${src}" width="${width}" height="28" alt="Kappa"></span>`;
   }
   function nativeRow(id, content, ffz = false) {
-    return `<div class="chat-line__message" data-a-target="chat-line-message" id="${id}"><span class="chat-line__message--timestamp">12:34</span><span class="chat-line__message--badges"><img class="chat-badge" src="${image}" width="18" height="18" alt="Moderator"><img class="chat-badge" src="${image}" width="18" height="18" alt="3-Month Subscriber badge"></span><span class="chat-author__display-name">UserName</span>: <span ${ffz ? 'class="message"' : 'data-a-target="chat-line-message-body"'}>${content}</span></div>`;
+    return `<div class="chat-line__message" data-a-target="chat-line-message" id="${id}"><span class="chat-line__message--timestamp">12:34</span><span class="chat-line__message--badges"><img class="chat-badge" src="${image}" width="18" height="18" alt="Moderator"><img class="chat-badge" src="${image}" width="18" height="18" alt="VIP"><img class="chat-badge" src="${image}" width="18" height="18" alt="3-Month Subscriber badge"></span><span class="chat-author__display-name">UserName</span>: <span ${ffz ? 'class="message"' : 'data-a-target="chat-line-message-body"'}>${content}</span></div>`;
   }
   document.querySelector('#native-list').innerHTML = [
     '<div class="chat-line__status" id="welcome-status">Welcome to chat!</div>',
@@ -44,6 +45,7 @@
     nativeRow('unicode-only', '😂 hello'),
     nativeRow('mixed', `<span class="reply-line">reply label</span>hello <a href="#">a link</a> <span data-a-target="chat-message-mention">@someone</span> ${emote('mixed-emote')} goodbye!`),
     nativeRow('adjacent', `${emote('first')} ${emote('second')} ${emote('third')}`),
+    nativeRow('wordy', `${emote('wordy-first')} lots of hidden words <strong>and a hidden label</strong> ${emote('wordy-second')}`),
     nativeRow('wide-row', emote('wide', 84)),
     nativeRow('seven-current-row','before <span class="seventv-emote-anchor"><span class="seventv-emote-container modified-emote" style="width:84px;height:28px"><img id="seven-current-base" class="seventv-emote seventv-emote--base" src="'+image+'" width="84" height="28"><img id="seven-current-overlay" class="seventv-emote seventv-emote-zw" src="'+image+'" width="28" height="28"></span></span> after'),
     nativeRow('animated-row', emote('animated', 28, '/animated.gif')),
@@ -53,7 +55,7 @@
     nativeRow('ffz-row', `before <span class="modified-emote"><img id="ffz-base" class="ffz-emote ffz-tooltip chat-line__message--emote" src="${image}" width="28" height="28"><span class="ffz-alt-text">Hidden fallback</span></span> after`, true),
     nativeRow('ffz-background-row', `before <div id="ffz-background" class="ffz-background ffz-tooltip chat-line__message--emote" style="background-image:url('${image}')"><span class="ffz-alt-text">Hidden background fallback</span></div> after`, true)
   ].join('');
-  document.querySelector('#seven-list').innerHTML = '<div class="seventv-message" msg-id="fixture" id="seven-row"><span class="seventv-chat-user"><span class="seventv-chat-user-username">SevenUser</span></span><span class="seventv-chat-message-body">before <span class="seventv-emote-box"><img id="seven-base" class="seventv-chat-emote" src="'+image+'" width="28" height="28"><img id="seven-overlay" class="seventv-chat-emote" src="'+image+'" width="28" height="28"></span> after</span></div><div class="seventv-message" msg-id="lazy" id="seven-lazy-row"><span class="seventv-chat-user"><span class="seventv-chat-user-username">LazyUser</span></span><span class="seventv-chat-message-body">before <span class="seventv-emote-box"><img id="seven-lazy" class="seventv-chat-emote" loading="lazy" src="/lazy.svg" width="28" height="28" alt="Lazy emote"></span> after</span></div><div class="seventv-message" msg-id="bttv" id="seven-bttv-row"><span class="seventv-chat-user"><span class="seventv-chat-user-username">BttvUser</span></span><span class="seventv-chat-message-body">before <div class="bttv-emote"><img id="seven-bttv" class="bttv-emote-image chat-line__message--emote" src="'+image+'" width="28" height="28"></div> after</span></div>';
+  document.querySelector('#seven-list').innerHTML = '<div class="seventv-message" msg-id="fixture" id="seven-row"><span class="seventv-chat-message-timestamp">12:34</span><span class="seventv-chat-user"><span class="seventv-chat-user-badge-list"><div class="seventv-chat-badge"><img id="legacy-subscriber-badge" src="'+image+'" width="18" height="18" alt="Abonnent"></div><div class="seventv-chat-badge"><img id="legacy-moderator-badge" src="'+image+'" width="18" height="18" alt="Moderator"></div></span><span class="seventv-chat-user-username">SevenUser</span></span><span class="seventv-chat-message-body">before <span class="seventv-emote-box"><img id="seven-base" class="seventv-chat-emote" src="'+image+'" width="28" height="28"><img id="seven-overlay" class="seventv-chat-emote" src="'+image+'" width="28" height="28"></span> after</span></div><div class="seventv-message" msg-id="lazy" id="seven-lazy-row"><span class="seventv-chat-user"><span class="seventv-chat-user-username">LazyUser</span></span><span class="seventv-chat-message-body">before <span class="seventv-emote-box"><img id="seven-lazy" class="seventv-chat-emote" loading="lazy" src="/lazy.svg" width="28" height="28" alt="Lazy emote"></span> after</span></div><div class="seventv-message" msg-id="bttv" id="seven-bttv-row"><span class="seventv-chat-user"><span class="seventv-chat-user-username">BttvUser</span></span><span class="seventv-chat-message-body">before <div class="bttv-emote"><img id="seven-bttv" class="bttv-emote-image chat-line__message--emote" src="'+image+'" width="28" height="28"></div> after</span></div>';
   window.pristineChatHTML = document.querySelector('#chat-region').innerHTML;
   window.originalAnimatedNode = document.getElementById('animated');
 </script>

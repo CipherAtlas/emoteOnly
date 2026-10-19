@@ -14,7 +14,7 @@ html[data-emoteonly-enabled="true"] :is(.chat-scrollable-area__message-container
   text-shadow: none !important;
 }
 
-html[data-emoteonly-enabled="true"] [data-eo-row="show"] :not([data-eo-path]):not([data-eo-graphic]):not([data-eo-graphic] *):not([data-eo-name]):not([data-eo-badge]) {
+html[data-emoteonly-enabled="true"] [data-eo-row="show"] :not([data-eo-path]):not([data-eo-graphic]):not([data-eo-graphic] *):not([data-eo-name]):not([data-eo-badge]):not([data-eo-time]) {
   display: none !important;
 }
 
@@ -22,7 +22,7 @@ html[data-emoteonly-enabled="true"] [data-eo-path] {
   font-size: 0 !important;
   line-height: 0 !important;
   letter-spacing: 0 !important;
-  word-spacing: var(--eo-space, 0px) !important;
+  word-spacing: 0 !important;
 }
 
 /* Restore provider sizing/line boxes at whole composition boundaries. */
@@ -31,6 +31,7 @@ html[data-emoteonly-enabled="true"] [data-eo-unit] {
   line-height: var(--eo-line) !important;
   letter-spacing: normal !important;
   word-spacing: normal !important;
+  margin-inline-end: var(--eo-gap) !important;
 }
 
 html[data-emoteonly-enabled="true"] [data-eo-graphic="ready"],
@@ -62,15 +63,24 @@ html[data-emoteonly-enabled="true"] [data-eo-unit] [data-eo-path] {
 
 /* Author leaves opt in only on rows with emotes; other metadata stays hidden. */
 html[data-emoteonly-enabled="true"] [data-eo-name],
-html[data-emoteonly-enabled="true"] [data-eo-badge] {
+html[data-emoteonly-enabled="true"] [data-eo-badge],
+html[data-emoteonly-enabled="true"] [data-eo-time] {
   visibility: visible !important;
   font-size: var(--eo-font) !important;
   line-height: var(--eo-line) !important;
   letter-spacing: normal !important;
   word-spacing: normal !important;
 }
-html[data-emoteonly-enabled="true"] [data-eo-name] {
+html[data-emoteonly-enabled="true"] [data-eo-name],
+html[data-emoteonly-enabled="true"] [data-eo-time] {
   color: var(--eo-color) !important;
   -webkit-text-fill-color: var(--eo-color) !important;
-  margin-inline-end: 0.3em !important;
+  margin-inline-end: 6px !important;
+  vertical-align: middle !important;
+}
+
+/* Pixel gaps remain stable when hidden parent text has zero-sized fonts. */
+html[data-emoteonly-enabled="true"] [data-eo-badge] {
+  margin-inline-end: 3px !important;
+  vertical-align: middle !important;
 }

@@ -1,3 +1,4 @@
+import { popupController } from './popup-control.mjs';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import auditChat from './browser-audit.cjs';
@@ -57,23 +58,17 @@ async function chrome(script, ...args) {
   try { return await execute(script, ...args); }
   finally { await command('POST', '/moz/context', { context: 'content' }); }
 }
-async function toolbarClick() {
-  return chrome(`
-    const widgetId = arguments[0].toLowerCase().replace(/[^a-z0-9_-]/g, '_') + '-browser-action';
-    const {CustomizableUI} = ChromeUtils.importESModule('moz-src:///browser/components/customizableui/CustomizableUI.sys.mjs');
-    CustomizableUI.addWidgetToArea(widgetId, CustomizableUI.AREA_NAVBAR);
-    const button = document.getElementById(widgetId)?.querySelector('toolbarbutton.unified-extensions-item-action-button');
-    if (!button) throw new Error('Extension toolbar button not found');
-    button.click();
-    return true;
-  `, addonId);
-}
+const configurePopup = popupController({ command, execute, addonId });
+const toolbarClick = () => configurePopup();
+
 async function toolbarState(expected) {
   const deadline = Date.now() + 3000;
   let latest;
   do {
     latest = await chrome(`
     const widgetId=arguments[0].toLowerCase().replace(/[^a-z0-9_-]/g,'_')+'-browser-action';
+    const {CustomizableUI}=ChromeUtils.importESModule('moz-src:///browser/components/customizableui/CustomizableUI.sys.mjs');
+    CustomizableUI.addWidgetToArea(widgetId,CustomizableUI.AREA_NAVBAR);
     const button=document.getElementById(widgetId)?.querySelector('toolbarbutton.unified-extensions-item-action-button');
     return {badge:button?.getAttribute('badge'),tooltip:button?.getAttribute('tooltiptext')};
   `, addonId);
@@ -86,7 +81,7 @@ async function setCurrentTab(handle) { await command('POST', '/window', { handle
 const waitEnabled = () => until("return document.documentElement.dataset.emoteonlyEnabled === 'true' && document.querySelector('#mixed')?.dataset.eoRow === 'show'", 'enabled existing messages');
 const waitDisabled = () => until("return !document.documentElement.hasAttribute('data-emoteonly-enabled') && !document.querySelector('[data-eo-row]')", 'disabled and restored');
 const geometry = `
-  const ids=['first','second','third','wide','animated','bttv-base','bttv-overlay','ffz-base','ffz-background','seven-base','seven-overlay','seven-current-base','seven-current-overlay'];
+  const ids=['first','second','third','wordy-first','wordy-second','wide','animated','bttv-base','bttv-overlay','ffz-base','ffz-background','seven-base','seven-overlay','seven-current-base','seven-current-overlay'];
   return Object.fromEntries(ids.map(id=>{ const el=document.getElementById(id), r=el.getBoundingClientRect(); return [id,{x:r.x,y:r.y,width:r.width,height:r.height,src:el.getAttribute('src'),html:el.outerHTML}]; }));
 `;
 
@@ -140,7 +135,8 @@ try {
   });
   await toolbarClick(); await waitDisabled();
   let before;
-  await check('Actual toolbar OFF restores original DOM and content', async () => {
+  let secondTab;
+  await check('Popup OFF restores original DOM and content', async () => {
     const restoration = await execute(`
       const before=window.pristineChatHTML,after=document.querySelector('#chat-region').innerHTML;
       return {equal:before===after,before,after};
@@ -155,26 +151,30 @@ try {
     return { exactChatMarkupRestored: true, action };
   });
   await toolbarClick(); await waitEnabled();
-  await check('Toolbar ON retains names/sub badges and removes ordinary message text', async () => {
+  await check('Popup ON retains names/badges and removes ordinary message text', async () => {
     const result = await execute(`
       const leaked=[];
       for(const row of document.querySelectorAll('.chat-scrollable-area__message-container,.seventv-chat-list,.pinned-chat__highlight-card')) {
         const walker=document.createTreeWalker(row,NodeFilter.SHOW_TEXT);
-        while(walker.nextNode()) { const node=walker.currentNode;if(!node.textContent.trim()||node.parentElement.hasAttribute('data-eo-name'))continue; const style=getComputedStyle(node.parentElement); const range=document.createRange();range.selectNodeContents(node); const r=range.getBoundingClientRect(); if(style.visibility==='visible'&&style.color!=='rgba(0, 0, 0, 0)'&&parseFloat(style.fontSize)>0&&r.width>0&&r.height>0) leaked.push(node.textContent); }
+        while(walker.nextNode()) { const node=walker.currentNode;if(!node.textContent.trim()||node.parentElement.matches('[data-eo-name],[data-eo-time]'))continue; const style=getComputedStyle(node.parentElement); const range=document.createRange();range.selectNodeContents(node); const r=range.getBoundingClientRect(); if(style.visibility==='visible'&&style.color!=='rgba(0, 0, 0, 0)'&&parseFloat(style.fontSize)>0&&r.width>0&&r.height>0) leaked.push(node.textContent); }
       }
       return {leaked,graphics:[...document.querySelectorAll('[data-eo-graphic]')].map(el=>el.id),controls:['player','chat-input','moderation'].map(id=>({id,display:getComputedStyle(document.getElementById(id)).display,visibility:getComputedStyle(document.getElementById(id)).visibility}))};
     `);
     const transcriptAudit = await execute(`return (${auditChat.toString()})()`);
     assert(transcriptAudit.visibleReadyGraphics > 0, 'recognized emote graphics must remain visible');
     assert.equal(transcriptAudit.visibleTextNodes, 0, `unexpected text: ${JSON.stringify(transcriptAudit.leakClasses)}; fixture text: ${JSON.stringify(result.leaked)}`);
-    assert.equal(transcriptAudit.visibleNonEmoteGraphics, 0, 'only subscriber badges may remain');
+    assert.equal(transcriptAudit.visibleNonEmoteGraphics, 0, 'only recognized author badge icons may remain');
     assert.equal(transcriptAudit.visiblePseudoLabels, 0, 'generated labels must not remain');
     result.transcriptAudit = transcriptAudit;
     assert.deepEqual(result.leaked, []);
+    assert(transcriptAudit.visibleTimestamps > 0, "chat timestamps must be visible");
     assert(transcriptAudit.visibleUsernames > 0, 'usernames must be visible');
-    assert(transcriptAudit.visibleSubscriberBadges > 0, 'subscriber badges must be visible');
-    const identity = await execute(`return [...document.querySelectorAll('[data-eo-name]')].every(el=>['UserName','SevenUser','LazyUser','BttvUser'].includes(el.textContent)) && [...document.querySelectorAll('[data-eo-badge]')].every(el=>el.alt==='3-Month Subscriber badge'||el.dataset.badge==='founder')`);
-    assert(identity, 'only actual author names and subscriber/founder badges are allowed');
+    assert(transcriptAudit.visibleBadges > 0, 'author badge icons must be visible');
+    const identity = await execute(`return [...document.querySelectorAll('[data-eo-name]')].every(el=>['UserName','SevenUser','LazyUser','BttvUser'].includes(el.textContent)) && [...document.querySelectorAll('[data-eo-badge]')].every(el=>el.matches('img.chat-badge,.ffz-badge,.seventv-chat-badge img'))`);
+    assert(identity, 'only actual author names and renderer badge icons are allowed');
+    const badges = await execute(`return ['legacy-subscriber-badge','legacy-moderator-badge'].map(id=>{const el=document.getElementById(id);return {id,marked:el.hasAttribute('data-eo-badge'),visible:getComputedStyle(el).visibility,width:el.getBoundingClientRect().width,height:el.getBoundingClientRect().height};})`);
+    for (const badge of badges) { assert(badge.marked); assert.equal(badge.visible,'visible'); assert.equal(badge.width,18); assert.equal(badge.height,18); }
+    assert.equal(await execute(`return [...document.querySelectorAll('#mixed [data-eo-badge]')].map(el=>el.alt).join('|')`), 'Moderator|VIP|3-Month Subscriber badge');
     assert.equal(await execute("return getComputedStyle(document.querySelector('#seven-current-row [data-eo-name]')).webkitTextFillColor"), 'rgb(255, 105, 180)', 'painted names remain readable');
     assert(result.graphics.includes('mixed-emote'));
     for (const control of result.controls) { assert.notEqual(control.display, 'none'); assert.equal(control.visibility, 'visible'); }
@@ -190,6 +190,14 @@ try {
     }
     const gap = (items, left, right) => items[right].x - items[left].x - items[left].width;
     assert(Math.abs(gap(after,'first','second') - gap(before,'first','second')) < 0.2, 'adjacent emote spacing');
+    const metadataGaps = await execute(`
+      return ['mixed','seven-row'].map(id => {
+        const row=document.getElementById(id), badges=[...row.querySelectorAll('[data-eo-badge]')], name=row.querySelector('[data-eo-name]');
+        const rect=element=>element.getBoundingClientRect();
+        return {id,badgeToName:rect(name).left-rect(badges.at(-1)).right,nameToEmote:rect(row.querySelector('[data-eo-graphic]')).left-rect(name).right};
+      });`);
+    for (const item of metadataGaps) { assert(item.badgeToName >= 3, `${item.id} badge/name gap`); assert(item.nameToEmote >= 6, `${item.id} name/emote gap`); }
+    assert(Math.abs(gap(after,'wordy-first','wordy-second') - gap(after,'first','second')) < 0.2, 'hidden words must not leave extra gaps');
     assert(after.first.x < after.second.x && after.second.x < after.third.x);
     assert.equal(await execute("return document.getElementById('animated') === window.originalAnimatedNode"), true);
     assert.equal(after.wide.width, 84);
@@ -212,15 +220,34 @@ try {
     assert(action.tooltip.includes('ON'));
     return { adjacentGapBefore: gap(before,'first','second'), adjacentGapAfter: gap(after,'first','second'), wideWidth: after.wide.width, zeroWidthCompositionsPreserved: true, animatedSourcePreserved: true, imageNodeIdentityPreserved: true, animatedDistinctFrames: frames.size, action };
   });
-  await check('Two tabs share toolbar state changes', async () => {
-    const secondTab = (await command('POST', '/window/new', { type: 'tab' })).handle;
+  await check('Two Twitch tabs share popup state changes', async () => {
+    secondTab = (await command('POST', '/window/new', { type: 'tab' })).handle;
     await setCurrentTab(secondTab); await command('POST', '/url', { url: url + '?second' }); await waitEnabled();
     await toolbarClick(); await waitDisabled();
     await setCurrentTab(firstTab); await waitDisabled();
     await toolbarClick(); await waitEnabled();
     await setCurrentTab(secondTab); await waitEnabled();
     await setCurrentTab(firstTab);
-    return { tabCount: 2, actualToolbarClicks: true };
+    return { tabCount: 2, shippedPopupControls: true };
+  });
+  await check('Popup independently controls names, badges and timestamps in both Twitch tabs', async () => {
+    const getAudit = () => execute(`return (${auditChat.toString()})()`);
+    for (const [key, counter] of [['usernames','visibleUsernames'], ['badges','visibleBadges'], ['timestamps','visibleTimestamps']]) {
+      await configurePopup({ [key]: false });
+      await until(`return document.querySelectorAll('[data-eo-${{usernames:'name',badges:'badge',timestamps:'time'}[key]}]').length===0`, `${key} hidden`);
+      const result = await getAudit();
+      assert.equal(result[counter], 0);
+      assert.equal(result.visibleTextNodes, 0);
+      assert(result.visibleReadyGraphics > 0);
+      assert.equal(result.emptyVisibleRows, 0);
+      await setCurrentTab(secondTab);
+      await until(`return document.querySelectorAll('[data-eo-${{usernames:'name',badges:'badge',timestamps:'time'}[key]}]').length===0`, `${key} hidden in background tab`);
+      assert.equal((await getAudit())[counter], 0);
+      await setCurrentTab(firstTab);
+      await configurePopup({ [key]: true });
+      await until(`return document.querySelectorAll('[data-eo-${{usernames:'name',badges:'badge',timestamps:'time'}[key]}]').length>0`, `${key} restored`);
+    }
+    return { independentSwitches: true, ordinaryTextLeaks: 0 };
   });
   await check('Late rendered emotes and changed image sources update existing rows', async () => {
     await execute("document.querySelector('#late-row [data-a-target=chat-line-message-body]').innerHTML='words '+emote('late-emote')+' more words';");
@@ -241,7 +268,7 @@ try {
     await until("return document.getElementById('replacement-emote-row').dataset.eoRow==='show' && getComputedStyle(document.getElementById('replacement-text-row')).display==='none'", 'SPA chat replacement');
     return { urlChanged: true, replacementRowsFiltered: true };
   });
-  await check('Final toolbar OFF removes all extension markers and restores controls', async () => {
+  await check('Final popup OFF removes all extension markers and restores controls', async () => {
     await toolbarClick(); await waitDisabled();
     assert.equal(await execute("return [...document.querySelectorAll('*')].some(el=>[...el.attributes].some(a=>a.name.startsWith('data-eo-') || a.name==='data-emoteonly-enabled' || a.value.includes('--eo-')))"), false);
     assert.equal(await execute("return getComputedStyle(document.getElementById('replacement-text-row')).display !== 'none' && document.getElementById('chat-input').value === 'Your message'"), true);

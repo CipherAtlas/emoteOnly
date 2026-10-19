@@ -1,4 +1,4 @@
-/* Emotes use renderer contracts; subscriber badges use role metadata or Twitch labels. */
+/* Recognize emotes and author badge icons by renderer contracts, never their labels. */
 (() => {
   "use strict";
   const lists = ".chat-scrollable-area__message-container, .seventv-chat-list, .pinned-chat__highlight-card";
@@ -68,12 +68,11 @@
     for (const element of names) items.push({ element, kind: "name" });
     for (const element of message.querySelectorAll("img.chat-badge, .ffz-badge[data-badge], .seventv-chat-badge img")) {
       if (element.closest(context) || messageFor(element) !== row) continue;
-      const role = element.getAttribute("data-badge");
-      const subscriber = role ? /^(subscriber|founder)$/.test(role) :
-        /^(?:(?:\d+[- ]Month )?Subscriber|Founder)(?: \([^)]*\))?(?: badge)?$/i.test(element.getAttribute("alt") || "");
-      if (!subscriber) continue;
       if (element.tagName === "IMG" && (!element.getAttribute("src") && !element.getAttribute("srcset") || !element.naturalWidth)) continue;
       items.push({ element, kind: "badge" });
+    }
+    for (const element of message.querySelectorAll(".chat-line__message--timestamp, .chat-line__timestamp, .seventv-chat-message-timestamp")) {
+      if (!element.closest(context) && messageFor(element) === row) items.push({ element, kind: "time" });
     }
     return items;
   }

@@ -1,6 +1,18 @@
 # Verification
 
-## Verified 2026-10-19, version 1.0.2
+## Version 1.1.0 (2026-10-19)
+
+- **23 Node tests** passed, including independent saved metadata preferences, defaults, write failure feedback and a startup storage-change race.
+- **11 Firefox 158 fixture groups** passed. The shipped popup controls are exercised in an extension tab with real WebDriver pointer clicks. Two Twitch tabs receive master and metadata changes immediately. Disabling restores exact original markup and provider styles.
+- Geometry checks verify badge-to-name gaps of at least 3 px, name-to-emote gaps of at least 6 px, and equal spacing between emotes separated by words versus a single space. Native, BTTV, FFZ and both 7TV composition fixtures retain image dimensions, layers, order and animation; GIF pixels change across rendered frames.
+- Mozilla lint: zero errors, warnings or notices. Final ZIP: `artifacts/emoteonly-1.1.0.zip`.
+- Actual user Firefox: toolbar panel visually checked with all four accessible switches, live subscriber/moderator badges, existing timestamps, and immediate badge visibility changes. Twitch’s Timestamp For New Messages preference was off and was enabled so incoming messages also carry times.
+- Live recheck: all three provider add-ons installed together on `jinnytty`, 60 seconds / 118 samples, 3 incoming rows, 1 peak BTTV emote, 2 visible author badges and zero sampled ordinary text, other graphics or pseudo-label leaks. OFF restored 11 text nodes and ON restored filtering. This low-traffic sample is narrow evidence, not broad provider coverage. `artifacts/firefox-live.json` records hashes; its five chat-runtime file hashes still match final source. The popup-only copy cleanup happened afterward and was rechecked by the full fixture suite and actual toolbar panel. Earlier 1.1.0 native/stable-7TV samples without rendered emotes are explicitly inconclusive in `artifacts/firefox-live-1.1-initial.json`. Reports overwrite their usual paths; results below remain historical.
+
+The filter still observes changed rows only. A metadata preference change intentionally reprocesses existing rows once; new messages do not trigger old-row rescans. Enabling timestamps adds one original-style read per timestamp-bearing emote row. No dependency, network logic or permission was added. The historical CPU comparison below has not been repeated for 1.1.0 and is not a performance guarantee for this release.
+
+
+## Historical release evidence: 1.0.2 (2026-10-19)
 
 - All **17 Node tests** passed.
 - All **10 Firefox 158.0 fixture groups** passed.

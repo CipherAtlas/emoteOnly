@@ -2,7 +2,7 @@
 
 Name: EmoteOnly
 
-Summary: Keep Twitch chat to emotes, usernames and subscriber badges. Hide ordinary message text with one click.
+Summary: Keep the emotes. Quiet the words. Choose usernames, badges and timestamps from a simple Twitch chat settings popup.
 
 ## Description
 
@@ -10,16 +10,18 @@ Keep the emotes. Quiet the words.
 
 EmoteOnly filters Twitch live chat so you can enjoy the reactions without reading every message.
 
-- Messages with emotes keep their username, subscriber or Founder badge, and rendered emotes.
+- Messages with emotes keep their rendered emotes and your choice of usernames, badges and timestamps. Subscriber, moderator, VIP, custom and localized badge icons are supported.
 - Text-only messages disappear completely, including their usernames and badges.
-- Ordinary message text, timestamps, other badges, reply labels and subscription notice headers stay hidden.
-- Click the toolbar icon to restore normal chat instantly. The setting stays in sync across open Twitch tabs.
+- Ordinary message text, reply labels and subscription notice headers stay hidden.
+- Click the toolbar icon for a simple popup with four switches: EmoteOnly, Usernames, Badges and Timestamps. Changes apply instantly across open Twitch tabs. Switch EmoteOnly off to restore normal chat.
 - Supports native Twitch emotes and supported 7TV, BetterTTV and FrankerFaceZ renderers. Install those providers separately to render their emotes.
 - Supports live channel pages, popout chat, theatre mode and native pinned-message cards.
 
-Animated, wide and zero-width emotes keep their original rendering. Plain Unicode emoji and unresolved emote codes remain hidden. Subscriber badge detection uses provider role metadata or standard English Twitch labels; unrecognized labels stay hidden. Renderer updates may require an extension update.
+Animated, wide and zero-width emotes keep their original rendering. Plain Unicode emoji and unresolved emote codes remain hidden. Badge icons are identified by the chat renderer rather than English labels, so custom and translated badges remain visible. Renderer updates may require an extension update.
 
-EmoteOnly stores one ON/OFF preference locally. It collects no chat content, browsing history or analytics, and its JavaScript makes no network requests. Twitch and your other emote extensions continue to load their own resources.
+Timestamps must be enabled in Twitch or your chat provider first. EmoteOnly displays their existing message times.
+
+EmoteOnly stores four display preferences locally. It collects no chat content, browsing history or analytics, and its JavaScript makes no network requests. Twitch and your other emote extensions continue to load their own resources.
 
 Firefox desktop 142 or newer. Click OFF whenever you want to read or use the full original messages.
 
@@ -35,7 +37,7 @@ Firefox desktop 142 or newer. Click OFF whenever you want to read or use the ful
 
 ## Reviewer notes
 
-The uploaded ZIP contains readable JavaScript/CSS, the manifest, an SVG icon and the MIT license. There is no minification, compilation or generated runtime code, and no runtime dependency. The build only archives the extension directory using web-ext. No account login is required to test the filter on public Twitch streams. Use a live channel with incoming emote messages, click the toolbar icon to compare ON/OFF, and optionally install the official provider add-ons. Provider add-ons are not bundled.
+The uploaded ZIP contains readable JavaScript/CSS, the manifest, an SVG icon and the MIT license. There is no minification, compilation or generated runtime code, and no runtime dependency. The build only archives the extension directory using web-ext. No account login is required to test the filter on public Twitch streams. Use a live channel with incoming emote messages, open the toolbar popup and use its switches to compare ON/OFF and metadata visibility, and optionally install the official provider add-ons. Provider add-ons are not bundled.
 
 Validation and finite live/browser/performance evidence: https://github.com/CipherAtlas/emoteOnly/blob/main/docs/VERIFICATION.md
 

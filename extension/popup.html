@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EmoteOnly</title>
+  <link rel="stylesheet" href="popup.css">
+  <script src="settings.js" defer></script>
+  <script src="popup.js" defer></script>
+</head>
+<body>
+  <header><img src="icons/face.svg" width="40" height="40" alt=""><h1>EmoteOnly</h1></header>
+  <main>
+    <label class="setting master"><span>Enable EmoteOnly</span><input id="enabled" type="checkbox" role="switch" disabled><span class="switch" aria-hidden="true"></span></label>
+    <fieldset id="details" aria-label="Display options" disabled>
+      <label class="setting"><span>Usernames</span><input id="usernames" type="checkbox" role="switch"><span class="switch" aria-hidden="true"></span></label>
+      <label class="setting"><span>Badges</span><input id="badges" type="checkbox" role="switch"><span class="switch" aria-hidden="true"></span></label>
+      <label class="setting"><span>Timestamps</span><input id="timestamps" type="checkbox" role="switch"><span class="switch" aria-hidden="true"></span></label>
+    </fieldset>
+  </main>
+  <p id="status" role="status" aria-live="polite"></p>
+</body>
+</html>
