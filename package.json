@@ -1,12 +1,13 @@
 {
   "name": "emoteonly",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "A tiny Firefox utility for emotes-only Twitch chat.",
   "engines": { "node": ">=22" },
   "scripts": {
     "test": "node --test tests/*.test.mjs",
     "test:firefox": "node tests/firefox-smoke.mjs",
+    "test:live": "node tests/firefox-live.mjs",
     "lint": "web-ext lint --source-dir extension --warnings-as-errors",
     "build": "web-ext build --source-dir extension --artifacts-dir artifacts --overwrite-dest"
   },

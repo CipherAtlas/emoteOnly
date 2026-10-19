@@ -211,3 +211,44 @@ test('root-only fallback finds a late provider mount in an existing sibling bran
     assert.equal(app.document.querySelector('#late-provider').getAttribute('data-eo-row'), 'show');
   } finally { app.close(); }
 });
+
+test('current native user-notice data selector hides subscriptions and retains nested message emotes', async () => {
+  const app = await setup(`<div data-test-selector="user-notice-line" id="current-notice"><span class="chatter-name">Subscriber</span><p>Subscribed for 47 months!</p>${row(img('notice-emote'), 'nested')}</div><div data-test-selector="user-notice-line" id="current-empty-notice">Gifted a subscription</div>`);
+  try {
+    assert.equal(app.document.querySelector('#current-notice').dataset.eoRow, 'show');
+    assert.equal(app.document.querySelector('#current-empty-notice').dataset.eoRow, 'hide');
+    assert.equal(app.document.querySelector('.chatter-name').hasAttribute('data-eo-path'), false);
+    assert.equal(app.document.querySelector('[alt="notice-emote"]').dataset.eoGraphic, 'ready');
+    assert.equal(app.document.querySelector('#nested').hasAttribute('data-eo-row'), false);
+    await app.toggle(false);
+    assert.equal(app.document.querySelector('[data-eo-row]'), null);
+  } finally { app.close(); }
+});
+
+test('pinned chat cards hide author/time/text while retaining only rendered emotes and restore exactly', async () => {
+  const app = await setup('', false);
+  try {
+    const main = app.document.querySelector('main');
+    main.insertAdjacentHTML('beforeend', `<div class="pinned-chat__highlight-card" id="pin"><p class="pinned-chat__pinned-by">Pinned by User</p><p class="pinned-chat__message">hello ${img('pinned')} goodbye</p><p>Sent at 12:00</p></div><div class="pinned-chat__highlight-card" id="empty-pin"><p class="pinned-chat__message">hello everyone</p></div>`);
+    const original = main.innerHTML;
+    await app.toggle(true);
+    assert.equal(app.document.querySelector('#pin').dataset.eoRow, 'show');
+    assert.equal(app.document.querySelector('#empty-pin').dataset.eoRow, 'hide');
+    assert.equal(app.document.querySelector('.pinned-chat__pinned-by').hasAttribute('data-eo-path'), false);
+    assert.equal(app.document.querySelector('[alt="pinned"]').dataset.eoGraphic, 'ready');
+    await app.toggle(false);
+    assert.equal(main.innerHTML, original);
+  } finally { app.close(); }
+});
+
+test('current 7TV 1.10 renderer recognizes emote/emoji images and groups zero-width composition', async () => {
+  const app = await setup(row(`<span class="seventv-emote-anchor"><span class="seventv-emote-container modified-emote" style="width:84px;height:28px"><img class="seventv-emote seventv-emote--base" src="wide.webp" width="84" height="28"><img class="seventv-emote seventv-emote-zw" src="overlay.webp" width="28" height="28"></span></span> text <img class="seventv-emoji" src="emoji.svg" width="28" height="28">`));
+  try {
+    assert.equal(app.document.querySelectorAll('[data-eo-graphic="ready"]').length, 3);
+    assert.equal(app.document.querySelector('.seventv-emote-container').hasAttribute('data-eo-unit'), true);
+    assert.equal(app.document.querySelector('.seventv-emote-zw').parentElement, app.document.querySelector('.seventv-emote--base').parentElement);
+    assert.equal(app.document.querySelector('.seventv-emote-container').style.width, '84px');
+    await app.toggle(false);
+    assert.equal(app.document.querySelector('[data-eo-unit]'), null);
+  } finally { app.close(); }
+});

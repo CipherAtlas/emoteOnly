@@ -8,6 +8,8 @@
   .chat-line__message, .seventv-message { padding: 4px 0; }
   img { vertical-align: middle; }
   [data-test-selector="emote-button"], .bttv-emote, .modified-emote { display: inline-block; }
+  .seventv-emote-container { display:inline-grid;place-items:center;vertical-align:middle; }
+  .seventv-emote { grid-area:1/1; }
   .seventv-emote-box { display: inline-grid; vertical-align: middle; }
   .seventv-emote-box > img { grid-area: 1/1; }
   .bttv-emote-overlay { margin-left: -28px; }
@@ -18,6 +20,8 @@
 <button id="moderation">Moderate channel</button>
 <input id="chat-input" value="Your message">
 <div id="chat-region">
+  <div class="pinned-chat__highlight-card" id="pinned-text"><div class="pinned-chat__pinned-by">Pinned by User</div><p class="pinned-chat__message">Plain pinned text</p><p>Sent at 12:34</p></div>
+  <div class="pinned-chat__highlight-card" id="pinned-emotes"><div class="pinned-chat__pinned-by">Pinned by User</div><p class="pinned-chat__message">hello <span data-test-selector="emote-button"><img class="chat-line__message--emote" id="pinned-emote" src="/emote.svg" width="28" height="28"></span> goodbye</p><p>Sent at 12:34</p></div>
   <div class="chat-scrollable-area__message-container" id="native-list"></div>
   <div class="seventv-chat-list" id="seven-list"></div>
 </div>
@@ -31,12 +35,16 @@
   }
   document.querySelector('#native-list').innerHTML = [
     '<div class="chat-line__status" id="welcome-status">Welcome to chat!</div>',
+    '<div class="unfamiliar-twitch-notice"><p>New notice layout must never expose ordinary words.</p><img class="notice-decoration" src="/emote.svg" width="28" height="28"></div>',
+    '<div data-test-selector="user-notice-line" id="native-notice"><p class="chatter-name">SubscriberName</p><p>Subscribed at Tier 1 for 47 months!</p></div>',
+    '<div data-test-selector="user-notice-line" id="native-notice-emotes"><p>Someone subscribed!</p>'+nativeRow('native-notice-message',emote('native-notice-emote'))+'</div>',
     '<div class="user-notice-line" id="subscription-notice"><div class="notice-header">Someone subscribed!</div>'+nativeRow('subscription-message', emote('subscription-emote'))+'</div>',
     nativeRow('text-only', 'hello everyone'),
     nativeRow('unicode-only', '😂 hello'),
     nativeRow('mixed', `<span class="reply-line">reply label</span>hello <a href="#">a link</a> <span data-a-target="chat-message-mention">@someone</span> ${emote('mixed-emote')} goodbye!`),
     nativeRow('adjacent', `${emote('first')} ${emote('second')} ${emote('third')}`),
     nativeRow('wide-row', emote('wide', 84)),
+    nativeRow('seven-current-row','before <span class="seventv-emote-anchor"><span class="seventv-emote-container modified-emote" style="width:84px;height:28px"><img id="seven-current-base" class="seventv-emote seventv-emote--base" src="'+image+'" width="84" height="28"><img id="seven-current-overlay" class="seventv-emote seventv-emote-zw" src="'+image+'" width="28" height="28"></span></span> after'),
     nativeRow('animated-row', emote('animated', 28, '/animated.gif')),
     nativeRow('late-row', 'not rendered yet'),
     nativeRow('failed-row', emote('failed', 28, '/missing.png')),

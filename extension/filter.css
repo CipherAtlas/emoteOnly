@@ -1,11 +1,14 @@
 /* Gate new/reconciled content before the observer's next batch can run. */
-html[data-emoteonly-enabled="true"] :is(.chat-scrollable-area__message-container, .seventv-chat-list) :is(.chat-line__message, .seventv-message, .user-notice-line, .chat-line__status):not([data-eo-row="show"]):not([data-eo-path]),
+html[data-emoteonly-enabled="true"] :is(.chat-scrollable-area__message-container, .seventv-chat-list, .pinned-chat__highlight-card) :is(.chat-line__message, .seventv-message, .user-notice-line, [data-test-selector="user-notice-line"], .chat-line__status):not([data-eo-row="show"]):not([data-eo-path]),
+html[data-emoteonly-enabled="true"] .pinned-chat__highlight-card:not([data-eo-row="show"]),
 html[data-emoteonly-enabled="true"] [data-eo-row="hide"] {
   display: none !important;
 }
 
-html[data-emoteonly-enabled="true"] [data-eo-row="show"],
-html[data-emoteonly-enabled="true"] [data-eo-row="show"] * {
+/* Keep the transcript silent even when Twitch introduces an unfamiliar notice.
+   Recognized graphic leaves opt back in below; surrounding controls are outside. */
+html[data-emoteonly-enabled="true"] :is(.chat-scrollable-area__message-container, .seventv-chat-list, .pinned-chat__highlight-card),
+html[data-emoteonly-enabled="true"] :is(.chat-scrollable-area__message-container, .seventv-chat-list, .pinned-chat__highlight-card) * {
   visibility: hidden !important;
   color: transparent !important;
   text-shadow: none !important;

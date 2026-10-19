@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
+import auditChat from './browser-audit.cjs';
 import { spawn, spawnSync } from 'node:child_process';
 import { createServer } from 'node:https';
 import { createServer as createNetServer } from 'node:net';
@@ -13,7 +15,7 @@ const extension = join(root, 'extension');
 const manifest = JSON.parse(await readFile(join(extension, 'manifest.json'), 'utf8'));
 const addonId = manifest.browser_specific_settings.gecko.id;
 const scratch = await mkdtemp(join(tmpdir(), 'emoteonly-firefox-'));
-const report = { browser: null, fixture: 'Local HTTPS fixture at a Twitch hostname; production extension manifest and source unchanged.', checks: [], limitations: ['Synthetic renderer fixtures do not establish live Twitch/provider compatibility.', 'Animation source and image nodes are preserved; animation playback was not visually accepted.'] };
+const report = { browser: null, fixture: 'Local HTTPS fixture at a Twitch hostname; production extension manifest and source unchanged.', checks: [], limitations: ['Synthetic renderer fixtures do not establish live Twitch/provider compatibility.', 'GIF playback is checked using distinct rendered frames; a human may still prefer different provider appearance/settings.'] };
 let driver, session, server, driverOutput = '';
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -66,18 +68,25 @@ async function toolbarClick() {
     return true;
   `, addonId);
 }
-async function toolbarState() {
-  return chrome(`
+async function toolbarState(expected) {
+  const deadline = Date.now() + 3000;
+  let latest;
+  do {
+    latest = await chrome(`
     const widgetId=arguments[0].toLowerCase().replace(/[^a-z0-9_-]/g,'_')+'-browser-action';
     const button=document.getElementById(widgetId)?.querySelector('toolbarbutton.unified-extensions-item-action-button');
     return {badge:button?.getAttribute('badge'),tooltip:button?.getAttribute('tooltiptext')};
   `, addonId);
+    if (!expected || latest.badge === expected) return latest;
+    await pause(50);
+  } while (Date.now() < deadline);
+  return latest;
 }
 async function setCurrentTab(handle) { await command('POST', '/window', { handle }); }
 const waitEnabled = () => until("return document.documentElement.dataset.emoteonlyEnabled === 'true' && document.querySelector('#mixed')?.dataset.eoRow === 'show'", 'enabled existing messages');
 const waitDisabled = () => until("return !document.documentElement.hasAttribute('data-emoteonly-enabled') && !document.querySelector('[data-eo-row]')", 'disabled and restored');
 const geometry = `
-  const ids=['first','second','third','wide','animated','bttv-base','bttv-overlay','ffz-base','ffz-background','seven-base','seven-overlay'];
+  const ids=['first','second','third','wide','animated','bttv-base','bttv-overlay','ffz-base','ffz-background','seven-base','seven-overlay','seven-current-base','seven-current-overlay'];
   return Object.fromEntries(ids.map(id=>{ const el=document.getElementById(id), r=el.getBoundingClientRect(); return [id,{x:r.x,y:r.y,width:r.width,height:r.height,src:el.getAttribute('src'),html:el.outerHTML}]; }));
 `;
 
@@ -125,7 +134,7 @@ try {
   });
 
   await check('Enabled on first installation; text-only/Unicode/broken-image rows disappear without empty rows', async () => {
-    const result = await execute("return ['text-only','unicode-only','failed-row','welcome-status'].map(id=>{ const el=document.getElementById(id); return {id,state:el.dataset.eoRow,display:getComputedStyle(el).display,height:el.getBoundingClientRect().height}; })");
+    const result = await execute("return ['text-only','unicode-only','failed-row','welcome-status','native-notice','pinned-text'].map(id=>{ const el=document.getElementById(id); return {id,state:el.dataset.eoRow,display:getComputedStyle(el).display,height:el.getBoundingClientRect().height}; })");
     for (const row of result) { assert.equal(row.display, 'none'); assert.equal(row.height, 0); }
     return result;
   });
@@ -137,7 +146,7 @@ try {
       return {equal:before===after,before,after};
     `);
     assert.equal(restoration.equal, true, `Restored DOM differs: ${JSON.stringify(restoration)}`);
-    const action = await toolbarState();
+    const action = await toolbarState('OFF');
     assert.equal(action.badge, 'OFF');
     assert(action.tooltip.includes('OFF'));
     before = await execute(geometry);
@@ -149,12 +158,18 @@ try {
   await check('Toolbar ON filters existing messages and removes all visible ordinary text', async () => {
     const result = await execute(`
       const leaked=[];
-      for(const row of document.querySelectorAll('.chat-line__message,.seventv-message,.user-notice-line,.chat-line__status')) {
+      for(const row of document.querySelectorAll('.chat-scrollable-area__message-container,.seventv-chat-list,.pinned-chat__highlight-card')) {
         const walker=document.createTreeWalker(row,NodeFilter.SHOW_TEXT);
         while(walker.nextNode()) { const node=walker.currentNode;if(!node.textContent.trim())continue; const style=getComputedStyle(node.parentElement); const range=document.createRange();range.selectNodeContents(node); const r=range.getBoundingClientRect(); if(style.visibility==='visible'&&style.color!=='rgba(0, 0, 0, 0)'&&parseFloat(style.fontSize)>0&&r.width>0&&r.height>0) leaked.push(node.textContent); }
       }
       return {leaked,graphics:[...document.querySelectorAll('[data-eo-graphic]')].map(el=>el.id),controls:['player','chat-input','moderation'].map(id=>({id,display:getComputedStyle(document.getElementById(id)).display,visibility:getComputedStyle(document.getElementById(id)).visibility}))};
     `);
+    const transcriptAudit = await execute(`return (${auditChat.toString()})()`);
+    assert(transcriptAudit.visibleReadyGraphics > 0, 'recognized emote graphics must remain visible');
+    assert.equal(transcriptAudit.visibleTextNodes, 0, 'entire transcript must contain no visible words');
+    assert.equal(transcriptAudit.visibleNonEmoteGraphics, 0, 'badges/decorations must not remain');
+    assert.equal(transcriptAudit.visiblePseudoLabels, 0, 'generated labels must not remain');
+    result.transcriptAudit = transcriptAudit;
     assert.deepEqual(result.leaked, []);
     assert(result.graphics.includes('mixed-emote'));
     for (const control of result.controls) { assert.notEqual(control.display, 'none'); assert.equal(control.visibility, 'visible'); }
@@ -175,12 +190,22 @@ try {
     assert.equal(after.wide.width, 84);
     assert.equal(after['seven-base'].x, after['seven-overlay'].x);
     assert.equal(after['seven-base'].y, after['seven-overlay'].y);
+    assert.equal(after['seven-current-overlay'].x - after['seven-current-base'].x, before['seven-current-overlay'].x - before['seven-current-base'].x, 'current 7TV centered overlay alignment');
     assert.equal(after['bttv-base'].x, after['bttv-overlay'].x);
     assert.equal(after.animated.src, '/animated.gif');
-    const action = await toolbarState();
+    const animatedElement = await command('POST', '/element', { using: 'css selector', value: '#animated' });
+    const elementId = animatedElement['element-6066-11e4-a52e-4f735466cecf'];
+    const frames = new Set();
+    for (let frame = 0; frame < 8; frame++) {
+      const pixels = Buffer.from(await command('GET', `/element/${elementId}/screenshot`), 'base64');
+      frames.add(createHash('sha256').update(pixels).digest('hex'));
+      await pause(70);
+    }
+    assert(frames.size >= 2, 'animated emote pixels must continue changing while ON');
+    const action = await toolbarState('ON');
     assert.equal(action.badge, 'ON');
     assert(action.tooltip.includes('ON'));
-    return { adjacentGapBefore: gap(before,'first','second'), adjacentGapAfter: gap(after,'first','second'), wideWidth: after.wide.width, zeroWidthCompositionsPreserved: true, animatedSourcePreserved: true, imageNodeIdentityPreserved: true, action };
+    return { adjacentGapBefore: gap(before,'first','second'), adjacentGapAfter: gap(after,'first','second'), wideWidth: after.wide.width, zeroWidthCompositionsPreserved: true, animatedSourcePreserved: true, imageNodeIdentityPreserved: true, animatedDistinctFrames: frames.size, action };
   });
   await check('Two tabs share toolbar state changes', async () => {
     const secondTab = (await command('POST', '/window/new', { type: 'tab' })).handle;

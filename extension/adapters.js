@@ -1,11 +1,12 @@
 /* Only recognized renderer contracts qualify; image URLs and alt text are not heuristics. */
 (() => {
   "use strict";
-  const lists = ".chat-scrollable-area__message-container, .seventv-chat-list";
-  const rows = ".chat-line__message, .seventv-message, .user-notice-line, .chat-line__status";
+  const lists = ".chat-scrollable-area__message-container, .seventv-chat-list, .pinned-chat__highlight-card";
+  const notices = ".user-notice-line, [data-test-selector='user-notice-line']";
+  const rows = `.chat-line__message, .seventv-message, ${notices}, .chat-line__status, .pinned-chat__highlight-card`;
   const excluded = [
     ".chat-line__message--badges", ".chat-badge", ".ffz-badge", ".bttv-chat-badge",
-    ".bttv-chat-badge-container", ".seventv-chat-user-badge-list", ".seventv-chat-badge",
+    ".bttv-chat-badge-container", ".seventv-chat-user-badge-list", ".seventv-chat-badge", ".seventv-badge",
     ".chat-author__display-name", ".chat-line__username-container", ".chat-line__message--timestamp",
     "[data-a-target='chat-message-username']", "[data-a-target='chat-message-mention']",
     ".seventv-chat-user", ".reply-line", ".ffz--fix-reply-line",
@@ -14,7 +15,7 @@
   ].join(",");
 
   const providers = [
-    { name: "7tv", graphic: "img.seventv-chat-emote, svg.seventv-chat-emote", unit: ".seventv-emote-box, .emote-token" },
+    { name: "7tv", graphic: "img.seventv-chat-emote, svg.seventv-chat-emote, img.seventv-emote, img.seventv-emoji, svg.seventv-emoji", unit: ".seventv-emote-box, .emote-token, .seventv-emote-container" },
     { name: "bttv", graphic: "img.bttv-emote-image", unit: ".bttv-emote" },
     { name: "ffz", graphic: "img.ffz-emote, img.ffz-emoji, div.chat-line__message--emote", unit: ".modified-emote" },
     { name: "twitch", graphic: "img.chat-line__message--emote", unit: "[data-test-selector='emote-button'], .modified-emote" }
@@ -23,12 +24,13 @@
 
   function messageFor(element) {
     const nearest = element.closest(rows);
-    return nearest?.closest(".user-notice-line") || nearest;
+    return nearest?.closest(notices) || nearest;
   }
 
   function detect(row) {
     const seven = row.matches(".seventv-message");
-    const body = seven ? row.querySelector(".seventv-chat-message-body") : row.querySelector("span.message") || row.querySelector(".chat-line__message") || row;
+    const body = seven ? row.querySelector(".seventv-chat-message-body") :
+      row.querySelector(".pinned-chat__message, span.message") || row.querySelector(".chat-line__message") || row;
     if (!body) return [];
     const units = new Map();
     for (const graphic of body.querySelectorAll(graphicSelector)) {

@@ -1,9 +1,10 @@
 # EmoteOnly project state
 
-Updated 2026-10-18.
+Updated 2026-10-19. Version 1.0.1.
 
-- Scope: Firefox desktop MV3 emotes-only Twitch live-chat display filter. One global persisted toolbar toggle, enabled by default, no runtime dependencies or network logic.
-- Implemented: event-page background, source-researched provider adapters, reversible CSS presentation, bounded batched transcript observers, discovery/replacement lifecycle, icon, Node and real-Firefox fixture tests, installation/signing docs.
-- Verification: All 13 Node tests and Mozilla lint/build have passed with zero lint warnings/notices/errors. All 10 Firefox 158 fixture groups pass with actual toolbar actions, two tabs, provider compositions, lazy images, exact OFF restoration, and a 1000-message burst. Final results and local screenshots are in artifacts/; rerun after source changes. The built ZIP payload matches the extension sources byte-for-byte. A bounded public Twitch popout probe loaded the extension and found a native list but received no messages, so live filtering remains unverified.
-- Release boundary: package is unsigned, no remote repository or publishing. Source contracts and manual acceptance matrix are in docs/. Live provider/browser combination acceptance, signed-install restart check and sustained live-chat profiling remain manual release checks.
-- Known limitation: CSS keeps source whitespace around hidden words when it shares an emote path; does not normalize every mixed-message gap. Pending lazy emotes reserve layout while loading. Unknown renderer containers stay unchanged.
+- Scope: Firefox desktop MV3 emotes-only Twitch display filter; one persisted global toggle, ON by default, no runtime dependencies/network logic.
+- Fixed from live testing: current native subscription-notice data selector, pinned card text/attribution, and current 7TV 1.10.x emote/overlay compositions. Recognized transcript roots now hide unfamiliar content by default.
+- Verified: 16 Node tests, 10 Firefox 158 fixture groups, 6 real live-browser groups. 294 incoming message-row instances across native, BTTV, FFZ, 7TV and all three add-ons together had zero sampled text leaks, visible badges or generated labels. OFF restored text; ON restored filtering. Pinned, full-channel and actual theatre layout checks passed. GIF playback verified through distinct rendered pixel frames.
+- Evidence: artifacts/firefox-live.json records provider versions, package hashes, runtime source hashes and per-mode counts; screenshots and fixture JSON are alongside it. Final ZIP payload matches source byte-for-byte. All browser sessions were disposable/headless and posted no chat messages.
+- Deliverable: artifacts/emoteonly-1.0.1.zip (unsigned). Install/signing steps in README.md. No remote repository, publishing or signing.
+- Remaining: signed-install restart, 20-minute comparative CPU/memory/scrolling profiling, and rare live-composition sampling. Finite samples do not certify every future renderer update. Source whitespace can retain wider mixed-message gaps; unfamiliar notices may reserve invisible layout space; unknown containers are outside support.
