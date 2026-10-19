@@ -6,7 +6,7 @@ Keep the emotes. Quiet the words.
 
 [Source and issues on GitHub](https://github.com/CipherAtlas/emoteOnly) · [MIT license](LICENSE)
 
-Version **1.0.2** was submitted to Mozilla Add-ons on 2026-10-19. Publication is pending; the local ZIP remains unsigned.
+Version **1.1.0** was submitted to Mozilla Add-ons on 2026-10-19. Publication is pending; the local ZIP remains unsigned.
 
 A small Firefox extension that shows emotes with optional usernames, badge icons and timestamps in supported Twitch live-chat transcripts. Native Twitch, 7TV, BetterTTV and FrankerFaceZ renderers have dedicated detection rules. No runtime dependencies, catalog downloads, analytics, or chat uploads.
 
@@ -85,7 +85,7 @@ Observation stays on the transcript and direct child changes along its ancestors
 
 ## Permanent installation and signing
 
-Firefox Release requires Mozilla signing for permanent installation. Version 1.0.2 has been submitted for a public AMO listing; publication is pending. The steps below also document the workflow for future releases.
+Firefox Release requires Mozilla signing for permanent installation. Version 1.1.0 has been submitted for a public AMO listing; publication is pending. The steps below also document the workflow for future releases.
 
 1. Run the tests, lint and build above, then complete the manual checks.
 2. Create a developer account at [Mozilla Add-on Developer Hub](https://addons.mozilla.org/developers/).

@@ -41,7 +41,17 @@ The uploaded ZIP contains readable JavaScript/CSS, the manifest, an SVG icon and
 
 Validation and finite live/browser/performance evidence: https://github.com/CipherAtlas/emoteOnly/blob/main/docs/VERIFICATION.md
 
-## Submission record
+## Latest submission: 1.1.0
+
+Submitted on 2026-10-19. Mozilla validated the final 11KB ZIP with zero errors or warnings and confirmed **Version Submitted**. The refreshed listing says **Awaiting Review**, not publicly available. Summary and description now describe the four popup switches, optional timestamps and all author badge icons.
+
+- Version: https://addons.mozilla.org/en-US/developers/addon/emoteonly/versions/6596437
+- Final ZIP SHA-256: 20210a85014eb6b331a50112c177e787987ceaf7dd294ffe4fa4dac530378b08
+- Source commit: 1aae66b
+- No transformed-source upload needed. Existing MIT, desktop-only distribution, icon and media retained.
+- Existing hourly review watch updated to 1.1.0 while preserving its existing PAUSED state.
+
+## Historical submission: 1.0.2
 
 Submitted version 1.0.2 on 2026-10-19. Mozilla server validation reported no errors or warnings, and the final page confirmed Version Submitted. Status: Awaiting Review; not publicly available yet.
 

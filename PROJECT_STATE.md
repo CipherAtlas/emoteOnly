@@ -14,16 +14,16 @@ Updated 2026-10-19. Working release: 1.1.0.
 ## Verification and current work
 
 - 23 Node tests and 11 Firefox 158 fixture groups passed; lint had zero errors/warnings/notices. Coverage includes metadata preferences, cross-tab updates, startup storage races, exact OFF restoration, gap geometry, mixed-word gap collapse, animation pixel changes, wide/zero-width layers, late/lazy images, 1000-row burst and SPA mounts.
-- Actual user's Firefox: 1.1.0 temporary extension loaded, full-size popup visually verified, subscriber/moderator icons and timestamps visible, badge/timestamp switches change live chat immediately. The final keyboard-focus fix and label-only popup (no subtext/footer) were reloaded and visually verified. Refresh Twitch once after the final add-on reload before the last interactive check.
+- Actual user's Firefox: 1.1.0 temporary extension loaded, full-size popup visually verified, subscriber/moderator icons and timestamps visible, badge/timestamp switches change live chat immediately. The final keyboard-focus fix and label-only popup (no subtext/footer) were reloaded and visually verified.
 - Final live chat-runtime recheck: combined providers, jinnytty, 60 seconds, 3 incoming rows/1 peak BTTV emote/2 author badges, zero sampled leaks; OFF restored 11 text nodes. All five chat-runtime hashes match final source. Popup-only text cleanup afterward passed all 23 tests/11 browser groups. Inconclusive native/stable-7TV samples remain explicitly inconclusive. Final ZIP matches source byte-for-byte; SHA-256 20210a85014eb6b331a50112c177e787987ceaf7dd294ffe4fa4dac530378b08. Reports/screenshots are ignored under artifacts/.
-- Verification complete. Commit/push the coherent 1.1.0 source/docs under existing publication authorization, submit the final 1.1.0 ZIP to Mozilla and update the existing review watch to the new version. Intermediate 1.0.3 was never uploaded.
+- Verification complete. Source/docs committed and pushed as 1aae66b. Final 1.1.0 ZIP submitted to Mozilla; server validation had zero errors/warnings and confirmation said Version Submitted. Listing summary/description updated and saved. Intermediate 1.0.3 was never uploaded.
 
 ## Publishing
 
 - Public MIT source repository: https://github.com/CipherAtlas/emoteOnly ; origin/main. User authorized public repository creation/push and Mozilla publication.
-- Mozilla 1.0.2 was submitted and last verified Awaiting Review, not publicly available: https://addons.mozilla.org/en-US/developers/addon/emoteonly/versions/6594427 . No signed XPI downloaded. Historical uploaded ZIP SHA-256: dcef7d981bd4175066f8e4a4d83f721966f8be781054d70340c08a31852ccfb1.
+- Mozilla 1.1.0 submitted and verified Awaiting Review, not publicly available: https://addons.mozilla.org/en-US/developers/addon/emoteonly/versions/6596437 . No signed XPI downloaded. Previous 1.0.2 version: 6594427; its historical ZIP SHA-256 is dcef7d981bd4175066f8e4a4d83f721966f8be781054d70340c08a31852ccfb1.
 - Manage: https://addons.mozilla.org/en-US/developers/addon/emoteonly/edit ; public product URL after approval: https://addons.mozilla.org/en-US/firefox/addon/emoteonly/ . Desktop Firefox 142+, Appearance, MIT, no data collection. Listing copy in docs/MOZILLA_LISTING.md.
-- Existing hourly thread heartbeat: watch-emoteonly-mozilla-review. Update this watch after a new submission; do not create a duplicate. Stay quiet unchanged and notify only approval/publication, rejection/reviewer request or required user action.
+- Existing hourly thread heartbeat: watch-emoteonly-mozilla-review. Its prompt was updated to 1.1.0/version6596437 while preserving its existing PAUSED state. Do not create a duplicate or claim it is actively monitoring. When active, stay quiet unchanged and notify only approval/publication, rejection/reviewer request or required user action.
 - Listing media: original SVG face, 128px PNG icon and two unedited anonymous-profile 1.0.2 live screenshots under docs/listing/. Do not publish screenshots of the user's logged-in browser/tabs.
 
 ## Limits and historical evidence
