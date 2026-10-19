@@ -77,7 +77,7 @@ async function toolbarState(expected) {
     const button=document.getElementById(widgetId)?.querySelector('toolbarbutton.unified-extensions-item-action-button');
     return {badge:button?.getAttribute('badge'),tooltip:button?.getAttribute('tooltiptext')};
   `, addonId);
-    if (!expected || latest.badge === expected) return latest;
+    if (!expected || latest.badge === expected && latest.tooltip?.includes(`is ${expected}`)) return latest;
     await pause(50);
   } while (Date.now() < deadline);
   return latest;
@@ -155,22 +155,27 @@ try {
     return { exactChatMarkupRestored: true, action };
   });
   await toolbarClick(); await waitEnabled();
-  await check('Toolbar ON filters existing messages and removes all visible ordinary text', async () => {
+  await check('Toolbar ON retains names/sub badges and removes ordinary message text', async () => {
     const result = await execute(`
       const leaked=[];
       for(const row of document.querySelectorAll('.chat-scrollable-area__message-container,.seventv-chat-list,.pinned-chat__highlight-card')) {
         const walker=document.createTreeWalker(row,NodeFilter.SHOW_TEXT);
-        while(walker.nextNode()) { const node=walker.currentNode;if(!node.textContent.trim())continue; const style=getComputedStyle(node.parentElement); const range=document.createRange();range.selectNodeContents(node); const r=range.getBoundingClientRect(); if(style.visibility==='visible'&&style.color!=='rgba(0, 0, 0, 0)'&&parseFloat(style.fontSize)>0&&r.width>0&&r.height>0) leaked.push(node.textContent); }
+        while(walker.nextNode()) { const node=walker.currentNode;if(!node.textContent.trim()||node.parentElement.hasAttribute('data-eo-name'))continue; const style=getComputedStyle(node.parentElement); const range=document.createRange();range.selectNodeContents(node); const r=range.getBoundingClientRect(); if(style.visibility==='visible'&&style.color!=='rgba(0, 0, 0, 0)'&&parseFloat(style.fontSize)>0&&r.width>0&&r.height>0) leaked.push(node.textContent); }
       }
       return {leaked,graphics:[...document.querySelectorAll('[data-eo-graphic]')].map(el=>el.id),controls:['player','chat-input','moderation'].map(id=>({id,display:getComputedStyle(document.getElementById(id)).display,visibility:getComputedStyle(document.getElementById(id)).visibility}))};
     `);
     const transcriptAudit = await execute(`return (${auditChat.toString()})()`);
     assert(transcriptAudit.visibleReadyGraphics > 0, 'recognized emote graphics must remain visible');
-    assert.equal(transcriptAudit.visibleTextNodes, 0, 'entire transcript must contain no visible words');
-    assert.equal(transcriptAudit.visibleNonEmoteGraphics, 0, 'badges/decorations must not remain');
+    assert.equal(transcriptAudit.visibleTextNodes, 0, `unexpected text: ${JSON.stringify(transcriptAudit.leakClasses)}; fixture text: ${JSON.stringify(result.leaked)}`);
+    assert.equal(transcriptAudit.visibleNonEmoteGraphics, 0, 'only subscriber badges may remain');
     assert.equal(transcriptAudit.visiblePseudoLabels, 0, 'generated labels must not remain');
     result.transcriptAudit = transcriptAudit;
     assert.deepEqual(result.leaked, []);
+    assert(transcriptAudit.visibleUsernames > 0, 'usernames must be visible');
+    assert(transcriptAudit.visibleSubscriberBadges > 0, 'subscriber badges must be visible');
+    const identity = await execute(`return [...document.querySelectorAll('[data-eo-name]')].every(el=>['UserName','SevenUser','LazyUser','BttvUser'].includes(el.textContent)) && [...document.querySelectorAll('[data-eo-badge]')].every(el=>el.alt==='3-Month Subscriber badge'||el.dataset.badge==='founder')`);
+    assert(identity, 'only actual author names and subscriber/founder badges are allowed');
+    assert.equal(await execute("return getComputedStyle(document.querySelector('#seven-current-row [data-eo-name]')).webkitTextFillColor"), 'rgb(255, 105, 180)', 'painted names remain readable');
     assert(result.graphics.includes('mixed-emote'));
     for (const control of result.controls) { assert.notEqual(control.display, 'none'); assert.equal(control.visibility, 'visible'); }
     await writeFile(join(root, 'artifacts', 'firefox-filtered.png'), Buffer.from(await command('GET', '/screenshot'), 'base64'));

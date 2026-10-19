@@ -23,3 +23,9 @@ The current 7TV contract was checked in [Mozilla's official 7TV 1.10.4 package](
 - [FFZ message/notice renderer](https://github.com/FrankerFaceZ/FrankerFaceZ/blob/0648abbb13a69c36933cc082439b53f991232357/src/sites/twitch-twilight/modules/chat/line.js), [emote/background/modifier renderer](https://github.com/FrankerFaceZ/FrankerFaceZ/blob/0648abbb13a69c36933cc082439b53f991232357/src/modules/chat/tokenizers.jsx#L1410-L1491).
 
 Source inspection informed fixtures and adapters. The live report records the exact installed provider versions and the extent of current runtime evidence. Provider catalog/download APIs are deliberately unused. New renderer support should add narrow selectors, exclusions and a representative fixture before broadening detection.
+
+## Author metadata in 1.0.2
+
+Only rows with recognized emotes retain identity. Names use `.chat-author__display-name`, `.chat-author__intl-login`, `[data-a-target="chat-message-username"]`, or legacy `.seventv-chat-user-username`; only their actual text leaves are revealed. Message-body mentions, reply previews, tooltips and notice headers are excluded. Native/BTTV/current 7TV retain Twitch's author contract.
+
+FFZ subscriber and Founder badges expose `data-badge="subscriber"` / `"founder"` on `.ffz-badge`. Native Twitch and legacy 7TV badge images use standard English alt labels such as `3-Month Subscriber badge`, `Subscriber` and `Founder`. Other roles, including subscriber-gifter badges, do not qualify. Unknown/localized labels fail closed. This label fallback is limited to known badge elements and never identifies emotes.

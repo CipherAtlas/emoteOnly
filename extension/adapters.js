@@ -1,4 +1,4 @@
-/* Only recognized renderer contracts qualify; image URLs and alt text are not heuristics. */
+/* Emotes use renderer contracts; subscriber badges use role metadata or Twitch labels. */
 (() => {
   "use strict";
   const lists = ".chat-scrollable-area__message-container, .seventv-chat-list, .pinned-chat__highlight-card";
@@ -50,5 +50,33 @@
     return Array.from(units, ([element, graphics]) => ({ element, graphics }));
   }
 
-  globalThis.EmoteOnlyAdapters = Object.freeze({ lists, rows, messageFor, detect });
+  function identity(row) {
+    // Notice headers and reply previews are separate from the message author.
+    const message = row.matches(notices) ? row.querySelector(".chat-line__message, .seventv-message") : row;
+    if (!message) return [];
+    const context = ".reply-line, .ffz--fix-reply-line, [data-a-target='chat-message-reply-parent-message'], [data-test-selector='chat-message-reply-context'], [data-a-target='chat-message-mention'], .message, [data-a-target='chat-line-message-body'], .seventv-chat-message-body, [role='tooltip'], .tw-tooltip, .ffz-il-tooltip";
+    const items = [];
+    const names = new Set();
+    for (const author of message.querySelectorAll(".chat-author__display-name, .chat-author__intl-login, [data-a-target='chat-message-username'], .seventv-chat-user-username")) {
+      if (author.closest(context) || messageFor(author) !== row) continue;
+      // Mark only actual name text, never an entire author block with badges/tooltips.
+      for (const element of [author, ...author.querySelectorAll("span")]) {
+        if (!element.closest("[role='tooltip'], .tw-tooltip, .ffz-il-tooltip") &&
+            [...element.childNodes].some(node => node.nodeType === Node.TEXT_NODE && node.textContent.trim())) names.add(element);
+      }
+    }
+    for (const element of names) items.push({ element, kind: "name" });
+    for (const element of message.querySelectorAll("img.chat-badge, .ffz-badge[data-badge], .seventv-chat-badge img")) {
+      if (element.closest(context) || messageFor(element) !== row) continue;
+      const role = element.getAttribute("data-badge");
+      const subscriber = role ? /^(subscriber|founder)$/.test(role) :
+        /^(?:(?:\d+[- ]Month )?Subscriber|Founder)(?: \([^)]*\))?(?: badge)?$/i.test(element.getAttribute("alt") || "");
+      if (!subscriber) continue;
+      if (element.tagName === "IMG" && (!element.getAttribute("src") && !element.getAttribute("srcset") || !element.naturalWidth)) continue;
+      items.push({ element, kind: "badge" });
+    }
+    return items;
+  }
+
+  globalThis.EmoteOnlyAdapters = Object.freeze({ lists, rows, messageFor, detect, identity });
 })();

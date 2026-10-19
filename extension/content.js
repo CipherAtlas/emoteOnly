@@ -1,8 +1,8 @@
 (() => {
   "use strict";
-  const { lists, rows, messageFor, detect } = globalThis.EmoteOnlyAdapters;
+  const { lists, rows, messageFor, detect, identity } = globalThis.EmoteOnlyAdapters;
   const root = document.documentElement;
-  const attributes = ["class", "src", "srcset", "style", "data-a-target", "data-test-selector"];
+  const attributes = ["class", "src", "srcset", "style", "data-a-target", "data-test-selector", "alt", "data-badge"];
   const containers = new Map();
   const pending = new Set();
   const spaces = new Map();
@@ -19,7 +19,7 @@
     if (!saved.has(name)) {
       saved.set(name, name === "style" ? {
         raw: element.getAttribute("style"), normalized: element.style.cssText,
-        properties: ["--eo-font", "--eo-line", "--eo-space"].map(key =>
+        properties: ["--eo-font", "--eo-line", "--eo-space", "--eo-color"].map(key =>
           [key, element.style.getPropertyValue(key), element.style.getPropertyPriority(key)])
       } : element.getAttribute(name));
     }
@@ -68,10 +68,14 @@
       const style = getComputedStyle(element);
       return { font: style.fontSize, line: style.lineHeight, space: spaceWidth(style) };
     });
-    return { row, units, metrics };
+    const identities = units.length ? identity(row).map(item => {
+      const style = getComputedStyle(item.element);
+      return { ...item, font: style.fontSize, line: style.lineHeight, color: style.color };
+    }) : [];
+    return { row, units, metrics, identities };
   }
 
-  function present({ row, units, metrics }) {
+  function present({ row, units, metrics, identities }) {
     const state = new Map();
     records.set(row, state);
     const paths = new Set([row]);
@@ -87,6 +91,14 @@
         // Wrapper paths retain CSS grids, negative margins and transforms.
         for (let parent = graphic; parent && parent !== row; parent = parent.parentElement) paths.add(parent);
       }
+    }
+    for (const { element, kind, font, line, color } of identities) {
+      remember(state, element, `data-eo-${kind}`, "");
+      remember(state, element, "style", "");
+      element.style.setProperty("--eo-font", font);
+      element.style.setProperty("--eo-line", line);
+      if (kind === "name") element.style.setProperty("--eo-color", color);
+      for (let parent = element; parent && parent !== row; parent = parent.parentElement) paths.add(parent);
     }
     if (units.length) {
       remember(state, row, "style", "");
@@ -157,7 +169,11 @@
         if (batch.length >= 200) break;
       }
       // Separate restoration, style reads and marker writes for the entire batch.
-      const prepared = batch.map(prepare);
+      // Read original colors/metrics synchronously; reapply the gate before any paint.
+      let prepared;
+      root.removeAttribute("data-emoteonly-enabled");
+      try { prepared = batch.map(prepare); }
+      finally { root.setAttribute("data-emoteonly-enabled", "true"); }
       for (const item of prepared) present(item);
     } finally {
       for (const [container, observer] of containers) observe(container, observer);

@@ -14,7 +14,7 @@ html[data-emoteonly-enabled="true"] :is(.chat-scrollable-area__message-container
   text-shadow: none !important;
 }
 
-html[data-emoteonly-enabled="true"] [data-eo-row="show"] :not([data-eo-path]):not([data-eo-graphic]):not([data-eo-graphic] *) {
+html[data-emoteonly-enabled="true"] [data-eo-row="show"] :not([data-eo-path]):not([data-eo-graphic]):not([data-eo-graphic] *):not([data-eo-name]):not([data-eo-badge]) {
   display: none !important;
 }
 
@@ -49,7 +49,7 @@ html[data-emoteonly-enabled="true"] [data-eo-graphic] text {
   display: none !important;
 }
 
-html[data-emoteonly-enabled="true"] [data-eo-path]:not([data-eo-unit]):not([data-eo-graphic]) {
+html[data-emoteonly-enabled="true"] [data-eo-path]:not([data-eo-unit]):not([data-eo-graphic]):not([data-eo-badge]) {
   background: transparent !important;
   border-color: transparent !important;
   box-shadow: none !important;
@@ -58,4 +58,19 @@ html[data-emoteonly-enabled="true"] [data-eo-path]:not([data-eo-unit]):not([data
 html[data-emoteonly-enabled="true"] [data-eo-unit] [data-eo-path] {
   font-size: var(--eo-font) !important;
   line-height: var(--eo-line) !important;
+}
+
+/* Author leaves opt in only on rows with emotes; other metadata stays hidden. */
+html[data-emoteonly-enabled="true"] [data-eo-name],
+html[data-emoteonly-enabled="true"] [data-eo-badge] {
+  visibility: visible !important;
+  font-size: var(--eo-font) !important;
+  line-height: var(--eo-line) !important;
+  letter-spacing: normal !important;
+  word-spacing: normal !important;
+}
+html[data-emoteonly-enabled="true"] [data-eo-name] {
+  color: var(--eo-color) !important;
+  -webkit-text-fill-color: var(--eo-color) !important;
+  margin-inline-end: 0.3em !important;
 }

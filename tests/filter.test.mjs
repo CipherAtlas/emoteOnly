@@ -6,6 +6,11 @@ import { JSDOM } from 'jsdom';
 const source = await Promise.all(['adapters.js', 'content.js'].map(name => readFile(new URL(`../extension/${name}`, import.meta.url), 'utf8')));
 const css = await readFile(new URL('../extension/filter.css', import.meta.url), 'utf8');
 const tick = () => new Promise(resolve => setTimeout(resolve, 30));
+async function waitFor(predicate) {
+  const deadline = Date.now() + 3000;
+  while (!predicate() && Date.now() < deadline) await tick();
+  assert(predicate(), 'observer processing completes within the deadline');
+}
 const img = (name = 'Kappa', extra = '') => `<img class="chat-line__message--emote ${extra}" src="${name}.webp" alt="${name}" width="28" height="28">`;
 const row = (body, id = 'm') => `<div class="chat-line__message" id="${id}"><span class="chat-line__message--timestamp">12:30</span><span class="chat-line__message--badges"><img class="chat-line__message--emote" alt="badge"></span><span data-a-target="chat-message-username">User</span>: <span class="message">${body}</span></div>`;
 
@@ -66,6 +71,7 @@ test('7TV keeps base/zero-width and SVG emoji within the original box, excludes 
   try {
     app.document.querySelector('main').innerHTML = `<div class="seventv-chat-list"><div class="seventv-message" msg-id="1"><div class="seventv-chat-user-badge-list"><img class="seventv-chat-emote" src="badge.webp"></div><span class="seventv-chat-message-body">hello <span class="emote-token"><div class="seventv-emote-box"><img class="seventv-chat-emote" src="base.webp"><img class="seventv-chat-emote zero-width-emote" src="overlay.webp"></div></span><svg class="seventv-chat-emote seventv-emoji"><path d="M0 0"/></svg></span></div></div>`;
     await tick();
+    await waitFor(() => app.document.querySelectorAll('[data-eo-graphic]').length === 3);
     assert.equal(app.document.querySelectorAll('[data-eo-graphic]').length, 3);
     assert.equal(app.document.querySelector('.seventv-emote-box').hasAttribute('data-eo-unit'), true);
     assert.equal(app.document.querySelector('.seventv-chat-user-badge-list img').hasAttribute('data-eo-graphic'), false);
@@ -131,12 +137,12 @@ test('rapid updates process only changed rows and do not feed back or retain rem
     app.window.getComputedStyle = new Proxy(app.window.getComputedStyle, { apply(target, self, args) { calls++; return Reflect.apply(target, self, args); } });
     const list = app.document.querySelector('main > div');
     list.insertAdjacentHTML('beforeend', Array.from({ length: 500 }, (_, index) => row(index % 2 ? 'words' : img(), `new-${index}`)).join(''));
-    await new Promise(resolve => setTimeout(resolve, 160));
+    await waitFor(() => app.document.querySelectorAll('[data-eo-row]').length === 501);
     assert.equal(app.document.querySelectorAll('[data-eo-row]').length, 501);
     assert.equal(app.document.querySelectorAll('[data-eo-row="show"]').length, 251);
-    assert.equal(calls, 250);
+    assert.equal(calls, 500);
     await tick();
-    assert.equal(calls, 250, 'no observer feedback or old-row rescans');
+    assert.equal(calls, 500, 'no observer feedback or old-row rescans');
     const removed = app.document.querySelector('#old'); removed.remove();
     await tick();
     assert.equal(removed.hasAttribute('data-eo-row'), false);
@@ -250,5 +256,28 @@ test('current 7TV 1.10 renderer recognizes emote/emoji images and groups zero-wi
     assert.equal(app.document.querySelector('.seventv-emote-container').style.width, '84px');
     await app.toggle(false);
     assert.equal(app.document.querySelector('[data-eo-unit]'), null);
+  } finally { app.close(); }
+});
+
+test('only emote rows retain author names and subscriber/founder badges; replies and mentions stay hidden', async () => {
+  const badges = '<img class="chat-badge" src="gift.webp" alt="Subscriber Gifter badge"><img class="chat-badge" src="sub.webp" alt="3-Month Subscriber badge"><img class="chat-badge" src="mod.webp" alt="Moderator"><span class="ffz-badge" data-badge="founder" style="background-image:url(founder.webp)"></span><span class="ffz-badge" data-badge="vip"></span>';
+  const app = await setup(row(img() + '<span class="reply-line"><span class="chat-author__display-name">ReplyUser</span></span><span data-a-target="chat-message-mention"><span class="chat-author__display-name">MentionUser</span></span>', 'mixed') + row('words', 'plain'), false);
+  try {
+    for (const block of app.document.querySelectorAll('.chat-line__message--badges')) block.innerHTML = badges;
+    const original = app.document.querySelector('main').innerHTML;
+    await app.toggle(true);
+    assert.equal(app.document.querySelectorAll('[data-eo-name]').length, 1);
+    assert.equal(app.document.querySelector('[data-eo-name]').textContent, 'User');
+    assert.equal(app.document.querySelectorAll('[data-eo-badge]').length, 2);
+    assert.equal(app.document.querySelector('#plain [data-eo-name]'), null);
+    const sub = app.document.querySelector('#mixed img[alt="3-Month Subscriber badge"]');
+    sub.alt = 'VIP';
+    await tick();
+    assert.equal(sub.hasAttribute('data-eo-badge'), false);
+    sub.alt = '3-Month Subscriber badge';
+    await tick();
+    assert.equal(sub.hasAttribute('data-eo-badge'), true);
+    await app.toggle(false);
+    assert.equal(app.document.querySelector('main').innerHTML, original);
   } finally { app.close(); }
 });

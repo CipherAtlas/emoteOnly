@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "EmoteOnly",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Keep the emotes. Quiet the words. One click for emotes-only Twitch chat.",
   "permissions": ["storage"],
   "host_permissions": ["https://www.twitch.tv/*", "https://twitch.tv/*"],
