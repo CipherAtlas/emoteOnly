@@ -2,6 +2,8 @@
 
 Keep the emotes. Quiet the words.
 
+[Source and issues on GitHub](https://github.com/CipherAtlas/emoteOnly) · [MIT license](LICENSE)
+
 A small Firefox extension that shows emotes with usernames and subscriber badges in supported Twitch live-chat transcripts. Native Twitch, 7TV, BetterTTV and FrankerFaceZ renderers have dedicated detection rules. No runtime dependencies, catalog downloads, analytics, or chat uploads.
 
 ## Try it
